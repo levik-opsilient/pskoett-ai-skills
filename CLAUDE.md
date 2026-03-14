@@ -33,6 +33,7 @@ Local Claude skills (`.claude/skills/`):
 - `.claude/skills/mcp-builder/SKILL.md` - Build high-quality MCP servers.
 - `.claude/skills/plan-interview/SKILL.md` - Local copy of the plan-interview workflow.
 - `.claude/skills/self-improvement/SKILL.md` - Local copy of the self-improvement workflow.
+- `.claude/skills/simplify-and-harden/SKILL.md` - Local copy of the simplify-and-harden workflow.
 - `.claude/skills/skill-creator/SKILL.md` - Guide for creating or updating skills.
 
 Keep this section synchronized across `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md`.
