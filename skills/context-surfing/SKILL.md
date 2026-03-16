@@ -76,11 +76,14 @@ When in doubt, start light. Add skills if you notice drift or quality issues mid
 
 This skill is live the moment the intent frame and plan are established. No explicit invocation needed.
 
-At activation, load and confirm:
-1. The intent frame (from intent-framed-agent output)
-2. The plan (from plan-interview output)
+At activation, load whatever anchors are available:
+
+1. The intent frame (from intent-framed-agent output) — if available
+2. The plan (from plan-interview output) — if available
 3. The current session state from the Entire CLI (if available)
 4. All project context files (see below)
+
+If neither an intent frame nor a plan exists (standalone mode), use the user's original task description combined with project context files as the wave anchor. This is sufficient — the skill degrades gracefully, not catastrophically.
 
 ### Entire CLI Integration
 
@@ -95,7 +98,13 @@ entire status 2>/dev/null
 - If it succeeds, use Entire as the session state backend. Log completions, in-progress items, and scope notes to it as work progresses.
 - If unavailable or failing, continue without it. Use the intent frame and plan file as the wave anchor instead. Track progress via structured comments in your output rather than Entire CLI commands. Do not block execution and do not nag about installation.
 
-The **wave anchor** is not held mentally. It is the intent-framed-agent output combined with Entire CLI session state (when available) or the plan file (when Entire is unavailable). Both are external, persistent artifacts. Every drift check reads from them directly — never from reconstructed memory.
+The **wave anchor** is not held mentally. It is built from whatever external, persistent artifacts are available — every drift check reads from them directly, never from reconstructed memory.
+
+- **Full pipeline:** intent frame + plan file + Entire CLI session state
+- **Partial pipeline:** whichever of intent frame or plan exists, plus project context files
+- **Standalone:** the user's original task description + project context files (CLAUDE.md, AGENTS.md, README.md, etc.)
+
+The anchor is weaker in standalone mode — fewer artifacts to cross-check against — but it is always present. A weak anchor is better than no anchor.
 
 ---
 
@@ -149,10 +158,9 @@ An agent with degraded context is the least likely to detect its own degradation
 
 This is an inherent limitation of self-monitoring. Mitigate it with external grounding:
 
-1. **Re-read the intent frame verbatim before each major step.** Don't rely on your memory of it. Open the artifact and read it. If what you're about to do doesn't match what you read, stop.
-2. **Cross-check against the plan file.** Before starting a new work unit, re-read the relevant plan section. Compare it to what you're actually doing.
-3. **Use Entire CLI logs as external memory.** If Entire is available, read back your own session log before non-trivial decisions. Your logged state is more reliable than your recalled state.
-4. **Treat the user as a drift sensor.** If the user expresses confusion, asks "why are you doing that?", or redirects you — treat it as a strong signal regardless of your own assessment.
+1. **Re-read the wave anchor before each major step.** If an intent frame exists, open it and read it verbatim. If a plan file exists, re-read the relevant section. In standalone mode, re-read the user's original task description. Don't rely on your memory of any of these — open the artifact. If what you're about to do doesn't match what you read, stop.
+2. **Use Entire CLI logs as external memory.** If Entire is available, read back your own session log before non-trivial decisions. Your logged state is more reliable than your recalled state.
+3. **Treat the user as a drift sensor.** If the user expresses confusion, asks "why are you doing that?", or redirects you — treat it as a strong signal regardless of your own assessment.
 
 The weak signals (hedging, verbosity) are more reliably self-detectable precisely because they're behavioral, not factual. Watch for those as early warnings.
 
@@ -162,11 +170,12 @@ When weak signals accumulate, don't exit immediately — try to re-anchor first.
 
 #### Step 1: Pause and re-read
 
-Stop producing output. Re-read the wave anchor verbatim:
+Stop producing output. Re-read whatever wave anchor artifacts are available:
 
-1. Open and read the intent frame artifact (not your memory of it)
-2. Open and read the relevant plan section
-3. If Entire CLI is available, read back your session log
+1. If an intent frame exists, open and read it verbatim (not your memory of it)
+2. If a plan file exists, open and read the relevant section
+3. In standalone mode, re-read the user's original task description and project context files
+4. If Entire CLI is available, read back your session log
 
 Compare what you're currently doing against what these artifacts say you should be doing.
 
@@ -191,7 +200,7 @@ There is no hard cap on recovery attempts. Keep re-anchoring as long as each att
 While context is healthy:
 
 1. **Execute with commitment.** No hedge, no re-litigating decisions already made. The plan is the plan.
-2. **Check the wave anchor before non-trivial decisions.** Re-read the intent-framed-agent output. If the decision aligns, proceed. If it doesn't, stop.
+2. **Check the wave anchor before non-trivial decisions.** Re-read whatever anchor artifacts are available (intent frame, plan, or original task description). If the decision aligns, proceed. If it doesn't, stop.
 3. **Track completions.** Log what's done, what's in progress, what's pending as work progresses — not at exit. If Entire CLI is available, use it as the session log. If not, maintain a running status in your output. This feeds the handoff if needed.
 4. **Resist scope creep.** If something interesting but out-of-scope appears, note it (in Entire CLI or in your output) — don't chase it.
 
@@ -220,11 +229,14 @@ Structure:
 - Ended: [timestamp]
 - Exit reason: [what drift signal was detected]
 
-## Intent Frame (from intent-framed-agent output — read verbatim, do not reconstruct)
-[copy directly from the intent-framed-agent artifact]
+## Intent Frame (if available — read verbatim, do not reconstruct)
+[copy directly from the intent-framed-agent artifact, or "N/A — standalone session" if none exists]
 
-## Plan (from plan-interview output — read verbatim, do not reconstruct)
-[copy directly from the plan-interview artifact]
+## Plan (if available — read verbatim, do not reconstruct)
+[copy directly from the plan-interview artifact, or "N/A — standalone session" if none exists]
+
+## Original Task Description (standalone fallback)
+[copy the user's original task description if no intent frame or plan exists]
 
 ## Completed Work (from Entire CLI session state or running output log)
 [pull directly from CLI log or structured output — do not reconstruct from memory]
@@ -266,8 +278,8 @@ Do not over-explain. The handoff file has the details.
 
 The next session should:
 1. Read the handoff file completely before doing anything else
-2. Run plan-interview using the handoff as input context
-3. Re-establish the intent frame via intent-framed-agent
+2. If the original session used the full pipeline, run plan-interview using the handoff as input context and re-establish the intent frame via intent-framed-agent
+3. If the original session was standalone, use the handoff's original task description and drift notes to re-ground
 4. Pick up context-surfing again from the recommended re-entry point
 
 This is not failure. This is the system working correctly. Clean exits produce better total output than zombie sessions that limp to the finish line.
@@ -278,7 +290,7 @@ This is not failure. This is the system working correctly. Clean exits produce b
 
 When the task completes within a healthy wave (no drift exit needed):
 
-1. Confirm all plan items are done
+1. Confirm all plan items are done (or, in standalone mode, confirm the original task description is satisfied)
 2. Note session end in a brief summary (optional, not a full handoff file)
 3. Signal readiness for simplify-and-harden — the next skill in the pipeline picks up from here
 
@@ -289,8 +301,9 @@ No handoff file needed for clean completions — just the outputs and a one-line
 ## Interoperability with Other Skills
 
 ### What this skill consumes
-- **From plan-interview:** The plan file (`docs/plans/plan-NNN-<slug>.md`). Used as part of the wave anchor and copied verbatim into handoff files.
-- **From intent-framed-agent:** The intent frame artifact. Used as part of the wave anchor and copied verbatim into handoff files.
+- **From plan-interview (optional):** The plan file (`docs/plans/plan-NNN-<slug>.md`). Strengthens the wave anchor when available.
+- **From intent-framed-agent (optional):** The intent frame artifact. Strengthens the wave anchor when available.
+- **From the user (always available):** The original task description. Used as the standalone wave anchor when upstream artifacts are absent.
 - **From Entire CLI (optional):** Session state for progress tracking and external memory.
 
 ### What this skill produces

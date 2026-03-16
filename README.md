@@ -60,7 +60,7 @@ Each skill prevents a distinct failure mode:
                                           ↑   concurrent    ↑
 ```
 
-**Stage 1 — Planning** (manual gate): `plan-interview` runs a structured interview and produces a plan file in `docs/plans/`. This is the only skill that requires explicit invocation (`/plan-interview`). All downstream skills activate automatically.
+**Stage 1 — Planning** (manual gate): `plan-interview` runs a structured interview and produces a plan file in `docs/plans/`. This is the only skill that requires explicit invocation (`/plan-interview`). Downstream skills activate automatically when present, but each works independently if earlier stages are skipped.
 
 **Stage 2 — Execution** (concurrent monitoring): `intent-framed-agent` captures the intent frame and monitors *scope* drift. `context-surfing` monitors *context quality* drift. Both run simultaneously. If both fire at once, context-surfing's exit takes precedence — degraded context makes scope checks unreliable.
 
@@ -80,7 +80,9 @@ Each skill prevents a distinct failure mode:
 
 ### Pipeline depth
 
-Not every task needs all five. Match depth to complexity:
+Every skill works standalone. The pipeline is the recommended combination, not a hard dependency — each skill silently adapts when upstream artifacts are absent.
+
+Match depth to complexity:
 
 | Task | Skills |
 |------|--------|
