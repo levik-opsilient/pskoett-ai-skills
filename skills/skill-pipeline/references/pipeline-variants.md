@@ -4,8 +4,13 @@ Detailed walkthroughs of each pipeline variant. The orchestrator in SKILL.md sel
 
 ## Standard Pipeline
 
-For single-feature depth work (Medium, Large, Long-running tasks).
+For single-feature depth work. Not all stages activate for every task class — see the activation table in SKILL.md for which skills apply at each depth.
 
+- **Medium:** `intent-framed-agent` + `simplify-and-harden` (no planning, no context-surfing)
+- **Large:** Full pipeline including `plan-interview` (recommended) and `context-surfing`
+- **Long-running:** Full pipeline with `context-surfing` as the critical skill
+
+Full pipeline (Large/Long-running):
 ```
 [plan-interview] → [intent-framed-agent] ⟂ [context-surfing] → [simplify-and-harden] → [self-improvement]
 ```

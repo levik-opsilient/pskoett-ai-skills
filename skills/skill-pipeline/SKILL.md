@@ -152,10 +152,10 @@ The orchestrator intervenes at these moments:
 Classify the task. Select pipeline variant and depth. Emit routing decision. If Large/Long-running, recommend `/plan-interview`. If Batch, recommend team-based variant.
 
 ### Plan Approval
-When user approves a plan from `plan-interview`, auto-start the execution stage. No additional "proceed?" confirmation. Populate task tracking with checklist items.
+When user approves a plan from `plan-interview`, flow directly into the execution stage — no separate "should I proceed?" prompt. This means activating `intent-framed-agent` to emit an Intent Frame. The intent frame itself still requires user confirmation before coding begins (that confirmation is part of `intent-framed-agent`, not an extra gate). Populate task tracking with checklist items.
 
 ### Planning-to-Execution Transition
-When the user signals readiness ("go ahead", "implement this", "let's start"), activate `intent-framed-agent`. Emit Intent Frame. Wait for user confirmation before coding.
+When no plan-interview was used and the user signals readiness ("go ahead", "implement this", "let's start"), activate `intent-framed-agent`. Emit Intent Frame. Wait for user confirmation of the frame before coding.
 
 ### Implementation Complete
 Check if diff meets the non-trivial threshold (see `references/classification-rules.md`). If yes, activate `simplify-and-harden`. If no, signal completion directly.

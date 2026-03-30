@@ -62,14 +62,7 @@ Evaluate these signals to determine task class:
 
 ## Non-Trivial Code Change Definition
 
-From `simplify-and-harden`, a diff is non-trivial when BOTH are true:
-
-1. It touches at least one executable source file (`*.ts`, `*.tsx`, `*.js`, `*.jsx`, `*.py`, `*.go`, `*.rs`, `*.java`, `*.cs`, `*.rb`, `*.php`, `*.swift`, `*.kt`, `*.scala`, `*.sh`)
-2. It includes either:
-   - At least 10 changed non-comment, non-whitespace lines in source files, OR
-   - At least one high-impact logic change (auth/authz, input validation, data access/query, external command execution, file path handling, network requests, concurrency control)
-
-Non-trivial = false when: docs-only, config-only, comments-only, formatting-only, generated artifacts only, or tests-only.
+The canonical definition lives in `skills/simplify-and-harden/SKILL.md` (lines 60-69). Refer to that source for the full rule. In short: the diff must touch at least one executable source file AND include either >= 10 changed logic lines or a high-impact logic change. Docs-only, config-only, tests-only, and generated artifacts are non-trivial = false.
 
 ## Planning Depth Calibration
 

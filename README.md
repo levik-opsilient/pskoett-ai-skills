@@ -3,6 +3,12 @@
 A collection of skills for AI agents. Follows the [Agent Skills specification](https://agentskills.io/specification).
 This repository is my personal skill testing ground.
 
+## Philosophy
+
+Every skill in this collection is built around a philosophy — a principle that addresses a specific failure mode in how agents work today. `plan-interview` is about collaborative planning: before codebase exploration starts, user and agent run a structured interview to align on constraints, scope, risk, and success criteria — and to surface whether a preparatory refactor should come before the main change. `intent-framed-agent` makes execution intent explicit so scope drift becomes visible. `context-surfing` monitors context quality and exits cleanly before degradation corrupts output. `simplify-and-harden` uses the peak context at end-of-task for a focused quality and security review. `self-improvement` turns repeated mistakes into durable rules that persist across sessions.
+
+The common thread: agents have peak context at specific moments — after planning, mid-execution, at completion, after learning — and these skills are designed to exploit those peaks. Each skill encodes a philosophy that agents struggle to internalize on their own, turning it into a structured workflow they can follow reliably. `skill-pipeline` ties these pieces together by classifying the task and routing it through the right depth of process.
+
 ## Install
 
 ```bash
@@ -30,6 +36,7 @@ skills/
 | [intent-framed-agent](skills/intent-framed-agent/) | Captures a lightweight intent contract at execution start and monitors coding-task drift until resolution |
 | [plan-interview](skills/plan-interview/) | Runs a structured interview before planning non-trivial implementations |
 | [self-improvement](skills/self-improvement/) | Captures learnings and errors with hook-based activation and automatic skill extraction |
+| [skill-pipeline](skills/skill-pipeline/) | Pipeline orchestrator that classifies tasks and routes them through the right skill combination at the right depth |
 | [simplify-and-harden](skills/simplify-and-harden/) | Post-completion self-review that runs simplify, harden, and micro-documentation passes before signaling done |
 
 ## Experimental (CI Skills)
