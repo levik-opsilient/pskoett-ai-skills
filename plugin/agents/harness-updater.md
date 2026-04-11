@@ -87,7 +87,9 @@ For each promotion applied:
 [show the exact change made to the target file]
 ```
 
-### Traceability (tracker-id)
+### Traceability (tracker-id) — Extension Point
+
+> Tracker comments are a recommended pattern for provenance, not a hard requirement. Promotions work without them — they add auditability for teams that need it.
 
 When inserting a rule, add an HTML comment with tracker metadata on the line above:
 

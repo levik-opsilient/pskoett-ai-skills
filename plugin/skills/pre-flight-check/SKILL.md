@@ -122,7 +122,9 @@ Outer loop improves harness → pre-flight surfaces improvements → inner loop 
 
 Every learning captured, every rule promoted, every eval created becomes visible at the next session start. The knowledge gaps get smaller with every cycle.
 
-## Incremental Scanning (cache)
+## Incremental Scanning — Extension Point
+
+> Cache-based incremental scanning and repo-memory support are future enhancements. The current hook script scans .learnings/ directly on every session start.
 
 The hook script can use a local cache file (`.pre-flight-cache.json`) to store last-known state: entry counts, scan date, high-priority items. On the next session start, it only re-scans entries newer than the cached state.
 

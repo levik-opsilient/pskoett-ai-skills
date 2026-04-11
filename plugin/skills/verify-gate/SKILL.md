@@ -167,7 +167,9 @@ verify-gate:
 
 If no configuration exists, discover commands automatically (Step 1) and suggest persisting them.
 
-### Custom Verification Tools (mcp-scripts)
+### Custom Verification Tools (mcp-scripts) — Extension Point
+
+> These are examples of what's possible with gh-aw mcp-scripts, not features shipped with this plugin. Projects define their own scripts.
 
 Projects with custom invariants can define inline verification tools using gh-aw's `mcp-scripts`. These run as additional phases after the standard compile/test/lint checks.
 

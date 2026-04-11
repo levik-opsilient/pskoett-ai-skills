@@ -12,7 +12,7 @@ When you are ready to enable CI automation:
 ---
 on:
   schedule:
-    - cron: '0 9 * * 1'  # Monday 9am UTC — or use fuzzy: "weekly on mondays"
+    - cron: '0 9 * * 1'
   workflow_dispatch:
   issue_comment:
     types: [created]
@@ -20,8 +20,8 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 
 tools:
   github:
@@ -33,7 +33,7 @@ safe-outputs:
     max: 1
     hide-older-comments: true
   upload-artifact:
-    max: 1
+    max-uploads: 1
   call-workflow:
     workflows: [eval-creator-ci]
     max: 1

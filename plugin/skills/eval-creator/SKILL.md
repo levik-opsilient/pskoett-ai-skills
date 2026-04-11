@@ -190,7 +190,9 @@ For projects with a CI pipeline, eval-creator can run as a scheduled check:
 - Per-PR: run evals related to changed files
 - Post-promotion: run the newly created eval immediately
 
-## Custom Verification Methods (mcp-scripts)
+## Custom Verification Methods (mcp-scripts) — Extension Point
+
+> These are examples of what's possible with gh-aw mcp-scripts, not features shipped with this plugin. Projects define their own scripts.
 
 Beyond the four built-in methods (grep-check, command-check, file-check, rule-check), projects can define custom verification tools as mcp-scripts for complex assertions that the built-ins can't express.
 
@@ -213,7 +215,9 @@ mcp-scripts:
 
 Reference the script in an eval case as `verification_method: script-check` with the mcp-script name. This is an extension point — the built-in methods cover most cases, but mcp-scripts handle project-specific behavioral assertions.
 
-## Persistence
+## Persistence — Extension Point
+
+> repo-memory is a gh-aw feature for durable cross-environment storage. This plugin works without it — .evals/ in the working directory is the default.
 
 By default, eval cases live in `.evals/` in the working directory. For teams using `repo-memory`, eval cases can be stored on a memory branch — making them available across environments and surviving ephemeral workspace teardown.
 

@@ -496,7 +496,9 @@ Before extraction, verify:
 - [ ] No project-specific hardcoded values
 - [ ] Follows skill naming conventions (lowercase, hyphens)
 
-## Persistence Options
+## Persistence Options — Extension Point
+
+> repo-memory is a gh-aw feature for durable cross-environment storage. This plugin works without it — .learnings/ in the working directory is the default.
 
 By default, learning entries are stored as files in `.learnings/` in the working directory. This works for persistent machines but breaks in ephemeral environments (Codespaces, CI runners, worktrees).
 

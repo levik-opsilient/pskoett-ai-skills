@@ -149,7 +149,9 @@ The gap report feeds into:
 - `--min-recurrence N` — raise the promotion threshold
 - `--area AREA` — filter to a specific area (frontend, backend, etc.)
 
-## Persistence
+## Persistence — Extension Point
+
+> repo-memory is a gh-aw feature for durable cross-environment storage. This skill works without it — reads .learnings/ from the working directory by default.
 
 By default, reads `.learnings/` from the working directory. When `repo-memory` is configured, reads from the memory branch instead — giving a complete view across all environments and sessions, even in fresh clones or ephemeral workspaces.
 

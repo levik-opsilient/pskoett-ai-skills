@@ -20,8 +20,7 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write
-  pull-requests: write
+  pull-requests: read
 
 tools:
   github:
@@ -33,7 +32,7 @@ safe-outputs:
     max: 1
     hide-older-comments: true
   upload-artifact:
-    max: 1
+    max-uploads: 1
 
 tracker-id: eval-creator
 
@@ -90,10 +89,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   actions: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 
 tools:
   github:
@@ -104,7 +103,7 @@ safe-outputs:
   add-comment:
     max: 1
   upload-artifact:
-    max: 1
+    max-uploads: 1
 
 tracker-id: eval-creator
 

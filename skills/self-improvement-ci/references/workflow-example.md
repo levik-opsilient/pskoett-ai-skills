@@ -18,8 +18,7 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write
-  pull-requests: write
+  pull-requests: read
 
 tools:
   github:
