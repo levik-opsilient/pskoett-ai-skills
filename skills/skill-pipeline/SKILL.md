@@ -2,15 +2,14 @@
 name: skill-pipeline
 description: >
   Pipeline orchestrator that classifies incoming coding tasks and routes them
-  through the correct combination of skills in the right order at the right
-  depth. Auto-activates on any coding task. Centralizes the decision logic
-  for which skills to use, how deep each goes, and how artifacts pass between
-  them. Handles three pipeline variants: standard (plan-interview,
-  intent-framed-agent, context-surfing, simplify-and-harden, self-improvement),
-  team-based (agent-teams-simplify-and-harden), and CI
-  (simplify-and-harden-ci, self-improvement-ci). Use this skill whenever
-  starting any coding work — it determines the appropriate pipeline depth and
-  variant automatically. Does not replace individual skills; dispatches to them.
+  through the correct combination of skills at the right depth. Implements two
+  feedback loops: the inner loop (detect, verify, recover) runs within a session
+  via plan-interview, intent-framed-agent, context-surfing, verify-gate,
+  simplify-and-harden, and self-improvement. The outer loop (inspect, encode,
+  regress-test) runs across sessions via learning-aggregator, harness-updater,
+  and eval-creator. pre-flight-check bridges the two by surfacing accumulated
+  knowledge at session start. Handles standard, team-based, CI, and outer-loop
+  pipeline variants. Does not replace individual skills; dispatches to them.
 ---
 
 # Skill Pipeline
@@ -30,10 +29,10 @@ Task received
   │  → No skills. Just do it.
   │
   ├─ Small (isolated fix, single-file, <10 logic lines)
-  │  → simplify-and-harden only (post-completion)
+  │  → verify-gate + simplify-and-harden
   │
   ├─ Medium (feature in known area, 2-5 files)
-  │  → intent-framed-agent + simplify-and-harden
+  │  → intent-framed-agent + verify-gate + simplify-and-harden
   │
   ├─ Large (complex refactor, new architecture, unfamiliar codebase, high-risk logic)
   │  → Full standard pipeline
@@ -57,25 +56,28 @@ Route task class to the right variant:
 | Task Class | Variant | Rationale |
 |------------|---------|-----------|
 | Trivial | None | No overhead needed |
-| Small | Standard (minimal) | S&H only |
-| Medium | Standard (partial) | Scope monitoring + review |
-| Large | Standard (full) | Full depth with planning |
+| Small | Standard (minimal) | Verify + S&H only |
+| Medium | Standard (partial) | Scope monitoring + verify + review |
+| Large | Standard (full) | Full inner loop with planning |
 | Long-running | Standard (full) | Context-surfing is critical |
 | Batch | Team-based | Breadth over depth |
 | CI environment | CI | Headless review |
+| Periodic | Outer loop | Cross-session improvement |
 
 **Heuristic:** Standard pipeline for **depth** (single complex feature). Team-based pipeline for **breadth** (batch of tasks). CI pipeline when `CI=true` or `GITHUB_ACTIONS=true`.
 
 ## Activation Sequences
 
-### Standard Pipeline
+### Standard Pipeline (Inner Loop)
 
 ```
-classify
+pre-flight-check (SessionStart hook — surfaces prior learnings)
+  → classify
   → (recommend /plan-interview if Large or Long-running)
   → intent-framed-agent (at planning-to-execution transition)
   → context-surfing (auto-activates when intent frame + plan exist; concurrent with intent monitoring)
   → [IMPLEMENTATION]
+  → verify-gate (compile + test + lint; fix loop if red)
   → simplify-and-harden (post-completion, if non-trivial diff)
   → self-improvement (on errors, corrections, or S&H learning candidates)
 ```
@@ -84,9 +86,11 @@ classify
 
 | Skill | Trivial | Small | Medium | Large | Long-running |
 |-------|---------|-------|--------|-------|-------------|
+| pre-flight-check | Hook | Hook | Hook | Hook | Hook |
 | plan-interview | - | - | - | Recommend | Recommend |
 | intent-framed-agent | - | - | Activate | Activate | Activate |
 | context-surfing | - | - | - | Activate | Critical |
+| verify-gate | - | Activate | Activate | Activate | Activate |
 | simplify-and-harden | - | If non-trivial | If non-trivial | If non-trivial | If non-trivial |
 | self-improvement | On error only | On error only | On error/completion | On error/completion | On error/completion |
 
@@ -98,7 +102,7 @@ classify (Batch)
   → agent-teams-simplify-and-harden
     ├─ Team lead emits Intent Frame #1
     ├─ Phase 1: parallel implementation agents
-    ├─ Compile + test verification
+    ├─ verify-gate (compile + test + lint)
     ├─ Phase 2: parallel audit agents (simplify, harden, spec)
     ├─ Fix loop (up to 3 audit rounds)
     └─ Learning loop output
@@ -113,15 +117,37 @@ classify (CI detected)
   → self-improvement-ci (pattern aggregation, promotion recommendations)
 ```
 
+### Outer Loop Pipeline
+
+The outer loop runs across sessions, not within them. Trigger on cadence (weekly, sprint boundary) or when `pre-flight-check` surfaces promotion-ready patterns.
+
+```
+learning-aggregator (read .learnings/, find patterns, rank promotion candidates)
+  → harness-updater agent (apply promotions to CLAUDE.md, AGENTS.md, copilot-instructions.md)
+  → eval-creator (create permanent test cases from promoted patterns)
+  → eval-creator run (regression check on all existing evals)
+```
+
+**When to trigger the outer loop:**
+- Weekly: recommended minimum cadence
+- Sprint boundary: after a burst of sessions
+- When `pre-flight-check` reports promotion-ready count > 3
+- After a significant incident or recurring failure
+- Manually: user invokes `/learning-aggregator`
+
+**Outer loop is always human-gated.** `learning-aggregator` produces a gap report. `harness-updater` shows diffs for approval. No automatic writes to instruction files without human review.
+
 ## Depth Calibration
 
 Not just which skills — how deep each goes:
 
 | Dimension | Small | Medium | Large | Long-running | Batch |
 |-----------|-------|--------|-------|-------------|-------|
+| Pre-flight check | Hook | Hook | Hook | Hook | Hook |
 | Planning passes | 0 | 0-1 | 1-2 | Deep iterative | Per-task or umbrella |
 | Intent frame | - | Single frame | Full frame + monitoring | Full + handoff | Team lead frame |
 | Context-surfing | - | - | Active | Critical (exit protocol ready) | Lightweight drift checks |
+| Verify-gate | Compile + test | Compile + test | Compile + test + lint | Compile + test + lint | Compile + test (per round) |
 | S&H budget | 20% diff, 60s | 20% diff, 60s | 20% diff, 60s | 20% diff, 60s | 30% team growth cap |
 | Audit rounds (teams) | - | - | - | - | Up to 3 |
 | Self-improvement | Error-triggered | Error-triggered | Error + S&H feed | Error + S&H feed | Error + teams feed |
@@ -138,7 +164,15 @@ Artifacts flow between skills. The orchestrator ensures each skill receives what
 
 3. **Handoff file** (`.context-surfing/handoff-[slug]-[timestamp].md`) — produced by `context-surfing` on drift exit, consumed by next session for resume.
 
-4. **Learning candidates** (`learning_loop.candidates`) — produced by `simplify-and-harden` and `agent-teams`, consumed by `self-improvement` for pattern tracking.
+4. **Verify-gate signal** — produced by `verify-gate` (pass/fail + diagnostics), consumed by `simplify-and-harden` (only activates after green gate) and fix loop (on failure).
+
+5. **Learning candidates** (`learning_loop.candidates`) — produced by `simplify-and-harden` and `agent-teams`, consumed by `self-improvement` for pattern tracking.
+
+6. **Learning entries** (`.learnings/*.md`) — produced by `self-improvement`, consumed by `learning-aggregator` for cross-session analysis and by `pre-flight-check` at session start.
+
+7. **Gap report** — produced by `learning-aggregator`, consumed by `harness-updater` agent for promotion and `eval-creator` for test case generation.
+
+8. **Eval cases** (`.evals/cases/*.md`) — produced by `eval-creator`, consumed by regression runs and surfaced by `pre-flight-check`.
 
 **Precedence:** If `context-surfing` and `intent-framed-agent` both fire simultaneously, context-surfing's exit takes precedence. Degraded context makes scope checks unreliable.
 
@@ -158,7 +192,7 @@ When user approves a plan from `plan-interview`, flow directly into the executio
 When no plan-interview was used and the user signals readiness ("go ahead", "implement this", "let's start"), activate `intent-framed-agent`. Emit Intent Frame. Wait for user confirmation of the frame before coding.
 
 ### Implementation Complete
-Check if diff meets the non-trivial threshold (see `references/classification-rules.md`). If yes, activate `simplify-and-harden`. If no, signal completion directly.
+Activate `verify-gate` to run compile, test, and lint checks. If any fail, enter the fix loop (up to 3 attempts per phase). Once all checks pass and the diff meets the non-trivial threshold (see `references/classification-rules.md`), activate `simplify-and-harden`. If the diff is trivial, signal completion directly after verify-gate passes.
 
 ### Drift Detected
 If `context-surfing` fires a drift exit, stop execution. Write handoff file. If the task was classified below Large, consider re-classifying upward for the next session.

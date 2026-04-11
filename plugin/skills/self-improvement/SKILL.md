@@ -496,6 +496,18 @@ Before extraction, verify:
 - [ ] No project-specific hardcoded values
 - [ ] Follows skill naming conventions (lowercase, hyphens)
 
+## Persistence Options
+
+By default, learning entries are stored as files in `.learnings/` in the working directory. This works for persistent machines but breaks in ephemeral environments (Codespaces, CI runners, worktrees).
+
+### repo-memory (recommended for teams)
+
+For teams or multi-environment workflows, back `.learnings/` with a git branch using gh-aw's `repo-memory`. Learning entries get git commits with full audit trail, survive across environments, and are accessible to any clone or fork.
+
+When `repo-memory` is configured, this skill writes to both `.learnings/` (local cache) and the memory branch (durable store). `learning-aggregator` and `pre-flight-check` read from the memory branch when available, falling back to local files.
+
+To enable: add `repo-memory: true` to the gh-aw workflow config, or set `LEARNING_STORE=repo-memory` in your environment.
+
 ## Multi-Agent Support
 
 This skill works across different AI coding agents. See [references/multi-agent-support.md](references/multi-agent-support.md) for agent-specific activation guides (Claude Code, Codex CLI, GitHub Copilot).
