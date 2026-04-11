@@ -47,7 +47,7 @@ skills/
 | [pre-flight-check](skills/pre-flight-check/) | Session-start scan that surfaces relevant learnings, errors, and eval status before work begins |
 | [eval-creator](skills/eval-creator/) | Creates permanent eval cases from promoted learnings and runs regression checks |
 
-## CI Skills (gh-aw)
+## CI Skills (gh-aw) (beta)
 
 Headless CI variants for GitHub Agentic Workflows. Each mirrors an interactive skill but runs without human interaction — scanning, reporting, and optionally gating PRs.
 
