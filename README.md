@@ -15,9 +15,76 @@ If you want to improve agent output over time, you need two loops, not one. The 
 
 ## Install
 
-```bash
-npx skills add pskoett/pskoett-ai-skills
-```
+There are several ways to install, depending on how you use Claude Code and how much of the pipeline you want. Pick the one that matches your setup.
+
+### Option 1: As a Claude Code plugin from the Anthropic directory
+
+The plugin is published in the Anthropic plugin directory as `pskoett-ai-skills`.
+
+**How:**
+1. Open Claude Code in any project
+2. Run the plugin command:
+   ```
+   /plugin
+   ```
+3. Search for `pskoett-ai-skills` in the directory and select **Install**
+4. Restart the session (or run `/plugin reload`) so the skills, agents, and hooks register
+
+This pulls the full bundle: 12 skills, 6 audit agents, and hook wiring (session-start pre-flight check, self-improvement activator, error detection).
+
+### Option 2: As a marketplace from this GitHub repo
+
+If you'd rather install directly from source (latest commit on `main`), add the repo as a marketplace first.
+
+**How:**
+1. Open Claude Code
+2. Add this repo as a marketplace:
+   ```
+   /plugin marketplace add pskoett/pskoett-skills
+   ```
+3. Install the plugin from it:
+   ```
+   /plugin install pskoett-ai-skills@pskoett-skills
+   ```
+4. Restart the session
+
+This path is useful if you want to track unreleased changes or run a fork.
+
+### Option 3: Individual skills via the Agent Skills CLI
+
+If you only want specific skills and not the full plugin bundle (e.g., you just want `verify-gate` and nothing else):
+
+**How:**
+1. Make sure you have Node.js installed
+2. Run `npx skills add` pointing at the skill path in this repo:
+   ```bash
+   npx skills add pskoett/pskoett-skills/skills/verify-gate
+   npx skills add pskoett/pskoett-skills/skills/simplify-and-harden
+   npx skills add pskoett/pskoett-skills/skills/self-improvement
+   ```
+3. Each command drops the skill folder into your agent's local skills directory
+
+This works with any agent that follows the [Agent Skills specification](https://agentskills.io/specification), not just Claude Code.
+
+### Option 4: Manual install
+
+If you want full control (fork, modify, cherry-pick), clone and copy.
+
+**How:**
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/pskoett/pskoett-skills.git
+   ```
+2. Copy the skill directories into your agent's skills folder:
+   ```bash
+   cp -r pskoett-skills/skills/* ~/.claude/skills/
+   ```
+3. Or symlink the individual skills you want:
+   ```bash
+   ln -s $(pwd)/pskoett-skills/skills/verify-gate ~/.claude/skills/verify-gate
+   ```
+4. Restart Claude Code so the skills register
+
 
 ## Structure
 
