@@ -32,6 +32,16 @@ Install as a Claude Code plugin from this repo's marketplace. Run each command f
 
 This installs the full bundle: skills, audit agents, and hooks.
 
+### Codex
+
+The same bundle now ships as a repo-local Codex plugin from `plugin/`.
+
+1. Open this repository in Codex.
+2. Restart Codex after pulling the latest repo state so it reloads repo marketplaces.
+3. Open the plugin directory, choose the `pskoett skills` marketplace, and install `pskoett-ai-skills`.
+
+Codex reads the marketplace from `.agents/plugins/marketplace.json` and the plugin manifest from `plugin/.codex-plugin/plugin.json`.
+
 ### GitHub Copilot CLI
 
 The same bundle ships as a Copilot CLI plugin from `copilot-plugin/`:
