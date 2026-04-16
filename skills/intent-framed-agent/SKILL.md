@@ -197,6 +197,15 @@ context-surfing drift exit at the same time), the drift exit takes precedence.
 Degraded context makes scope checks unreliable — resolve the context issue
 first, then resume scope monitoring in the next session.
 
+**Cadence separation:** Intent Checks fire at scope boundaries — before
+touching a new area/file, before starting a new logical work unit, when the
+current action feels tangential. Context-surfing's pre-commit anchor check
+fires at side-effecting-action moments — specific tool calls, writes,
+commits, commit-level output. Don't run both in the same beat: if an Intent
+Check has just fired and resolved cleanly, the next side-effecting action
+inside the same work unit doesn't need a fresh anchor check — you already
+re-grounded.
+
 ### What this skill produces
 
 - **Intent frame artifact** — consumed by context-surfing as part of the wave
