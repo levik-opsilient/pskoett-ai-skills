@@ -8,11 +8,17 @@ description: "Frames coding-agent work sessions with explicit intent capture and
 ## Install
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills
+gh skill install pskoett/pskoett-skills
 ```
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/intent-framed-agent
+gh skill install pskoett/pskoett-skills intent-framed-agent
+```
+
+Fallback using the Agent Skills CLI:
+
+```bash
+npx skills add pskoett/pskoett-skills/skills/intent-framed-agent
 ```
 
 ## Purpose

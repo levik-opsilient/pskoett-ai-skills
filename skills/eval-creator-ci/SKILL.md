@@ -8,13 +8,20 @@ description: "[Beta] CI-only eval regression runner using gh-aw (GitHub Agentic 
 ## Install
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/eval-creator-ci
+gh skill install pskoett/pskoett-skills eval-creator-ci
 ```
 
 For interactive sessions, use:
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/eval-creator
+gh skill install pskoett/pskoett-skills eval-creator
+```
+
+Fallback using the Agent Skills CLI:
+
+```bash
+npx skills add pskoett/pskoett-skills/skills/eval-creator-ci
+npx skills add pskoett/pskoett-skills/skills/eval-creator
 ```
 
 ## Purpose

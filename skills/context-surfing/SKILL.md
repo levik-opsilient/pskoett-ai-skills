@@ -15,7 +15,13 @@ description: >
 ## Install
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/context-surfing
+gh skill install pskoett/pskoett-skills context-surfing
+```
+
+Fallback using the Agent Skills CLI:
+
+```bash
+npx skills add pskoett/pskoett-skills/skills/context-surfing
 ```
 
 The agent rides the wave of peak context. When the wave crests, it commits. When it detects drift, it pulls out cleanly — saving state, handing off, and letting the next session catch the next wave.

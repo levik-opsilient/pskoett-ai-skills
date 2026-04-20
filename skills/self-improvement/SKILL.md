@@ -8,13 +8,20 @@ description: "Captures learnings, errors, and corrections to enable continuous i
 ## Install
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/self-improvement
+gh skill install pskoett/pskoett-skills self-improvement
 ```
 
 For CI-only execution, use:
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/self-improvement-ci
+gh skill install pskoett/pskoett-skills self-improvement-ci
+```
+
+Fallback using the Agent Skills CLI:
+
+```bash
+npx skills add pskoett/pskoett-skills/skills/self-improvement
+npx skills add pskoett/pskoett-skills/skills/self-improvement-ci
 ```
 
 Log learnings and errors to markdown files for continuous improvement. Coding agents can later process these into fixes, and important learnings get promoted to project memory.

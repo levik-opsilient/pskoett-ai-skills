@@ -8,7 +8,13 @@ description: "CI-only self-improvement workflow using gh-aw (GitHub Agentic Work
 ## Install
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/self-improvement-ci
+gh skill install pskoett/pskoett-skills self-improvement-ci
+```
+
+Fallback using the Agent Skills CLI:
+
+```bash
+npx skills add pskoett/pskoett-skills/skills/self-improvement-ci
 ```
 
 ## Purpose

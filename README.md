@@ -53,6 +53,25 @@ copilot plugin install pskoett-ai-skills
 
 Copilot reads the marketplace from `.github/plugin/marketplace.json` and the plugin manifest from `plugin/.copilot-plugin/plugin.json`.
 
+### Individual skills via GitHub CLI (`gh skill`)
+
+GitHub CLI now supports Agent Skills via [`gh skill`](https://cli.github.com/manual/gh_skill_install). Requires GitHub CLI `v2.90.0` or later.
+
+```bash
+# Browse this repo's skills interactively
+gh skill install pskoett/pskoett-skills
+
+# Install specific skills directly
+gh skill install pskoett/pskoett-skills verify-gate
+gh skill install pskoett/pskoett-skills simplify-and-harden
+gh skill install pskoett/pskoett-skills self-improvement
+
+# Target a specific host and scope when needed
+gh skill install pskoett/pskoett-skills verify-gate --agent codex --scope user
+```
+
+`gh skill` installs to the correct skill directory for the selected host, including GitHub Copilot, Claude Code, Codex, Cursor, and Gemini CLI.
+
 ### Individual skills via the Agent Skills CLI
 
 If you only want specific skills and not the full plugin bundle:

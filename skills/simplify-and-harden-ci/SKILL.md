@@ -8,7 +8,13 @@ description: "CI-only Simplify & Harden workflow for pull requests using gh-aw (
 ## Install
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/simplify-and-harden-ci
+gh skill install pskoett/pskoett-skills simplify-and-harden-ci
+```
+
+Fallback using the Agent Skills CLI:
+
+```bash
+npx skills add pskoett/pskoett-skills/skills/simplify-and-harden-ci
 ```
 
 ## Purpose

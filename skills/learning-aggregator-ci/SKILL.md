@@ -8,13 +8,20 @@ description: "[Beta] CI-only learning aggregation workflow using gh-aw (GitHub A
 ## Install
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/learning-aggregator-ci
+gh skill install pskoett/pskoett-skills learning-aggregator-ci
 ```
 
 For interactive sessions, use:
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/learning-aggregator
+gh skill install pskoett/pskoett-skills learning-aggregator
+```
+
+Fallback using the Agent Skills CLI:
+
+```bash
+npx skills add pskoett/pskoett-skills/skills/learning-aggregator-ci
+npx skills add pskoett/pskoett-skills/skills/learning-aggregator
 ```
 
 ## Purpose

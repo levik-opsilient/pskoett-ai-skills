@@ -13,7 +13,13 @@ description: |
 ## Install
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/plan-interview
+gh skill install pskoett/pskoett-skills plan-interview
+```
+
+Fallback using the Agent Skills CLI:
+
+```bash
+npx skills add pskoett/pskoett-skills/skills/plan-interview
 ```
 
 ## Philosophy

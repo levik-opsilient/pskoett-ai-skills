@@ -8,13 +8,20 @@ description: "Post-completion self-review for coding agents that runs simplify, 
 ## Install
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/simplify-and-harden
+gh skill install pskoett/pskoett-skills simplify-and-harden
 ```
 
 For CI-only execution, use:
 
 ```bash
-npx skills add pskoett/pskoett-ai-skills/skills/simplify-and-harden-ci
+gh skill install pskoett/pskoett-skills simplify-and-harden-ci
+```
+
+Fallback using the Agent Skills CLI:
+
+```bash
+npx skills add pskoett/pskoett-skills/skills/simplify-and-harden
+npx skills add pskoett/pskoett-skills/skills/simplify-and-harden-ci
 ```
 
 ## Metadata
