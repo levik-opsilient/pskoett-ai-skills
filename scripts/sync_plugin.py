@@ -1,34 +1,45 @@
 #!/usr/bin/env python3
-"""Sync skills/ -> plugin/skills/ with the public source as the single source of truth.
+"""Sync canonical skills into native and portable plugin distributions.
 
 For each skill present in BOTH skills/ and plugin/skills/:
-  - copy references/, scripts/, assets/ from the source skill
-  - rebuild the plugin SKILL.md from the SOURCE body + SOURCE description, while
-    PRESERVING the plugin-only frontmatter keys (hooks, user-invocable,
-    argument-hint) that make the skill register correctly as a plugin.
+  - rebuild the native plugin copy while preserving client registration fields
+  - copy the canonical Agent Skill into the portable Agent Plugins package
+  - copy runtime support files while excluding development-only evals
 
-This is what keeps plugin/skills/ from drifting away from skills/: body and
-description always come from source; only the plugin-registration frontmatter is
-allowed to differ.
+Native plugin membership is the curated allowlist for both generated trees, so
+internal skills are not shipped accidentally.
 
 Usage:
     python3 scripts/sync_plugin.py [skill-name ...]
       no args -> sync every skill present in both trees
 """
-import sys
+import re
 import shutil
+import sys
 from pathlib import Path
 
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT / "skills"
-DST_DIR = ROOT / "plugin" / "skills"
+NATIVE_SKILLS_DIR = ROOT / "plugin" / "skills"
+PORTABLE_PLUGIN_DIR = ROOT / "agent-plugin"
+PORTABLE_SKILLS_DIR = PORTABLE_PLUGIN_DIR / "skills"
 
 # Frontmatter keys that are plugin-specific (absent from the public source) and
 # must be carried over from the existing plugin copy.
 PLUGIN_KEYS = ["hooks", "user-invocable", "argument-hint"]
-SUBDIRS = ["references", "scripts", "assets"]
+AGENT_SKILL_KEYS = {
+    "name",
+    "description",
+    "license",
+    "compatibility",
+    "metadata",
+    "allowed-tools",
+}
+NATIVE_SUBDIRS = ["references", "scripts", "assets"]
+PORTABLE_EXCLUDES = {"evals"}
+SKILL_NAME_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
 def split_frontmatter(text):
@@ -79,36 +90,104 @@ def build_skill_md(src_md: Path, dst_md: Path) -> str:
     return f"---\n{fm_yaml}---\n{src_body}"
 
 
+def validate_skill_name(name: str) -> None:
+    if len(name) > 64 or not SKILL_NAME_PATTERN.fullmatch(name):
+        raise SystemExit(f"invalid skill name: {name}")
+
+
+def validate_portable_frontmatter(name: str, frontmatter: dict) -> None:
+    validate_skill_name(name)
+    if not isinstance(frontmatter, dict):
+        raise SystemExit(f"skills/{name}/SKILL.md frontmatter must be a mapping")
+    unsupported = set(frontmatter) - AGENT_SKILL_KEYS
+    if unsupported:
+        keys = ", ".join(sorted(unsupported))
+        raise SystemExit(
+            f"skills/{name}/SKILL.md has non-portable frontmatter keys: {keys}"
+        )
+    if frontmatter.get("name") != name:
+        raise SystemExit(f"skills/{name}/SKILL.md name must match its directory")
+
+
+def sync_native_skill(name: str, src: Path, dst: Path) -> None:
+    for sub in NATIVE_SUBDIRS:
+        source_subdir, destination_subdir = src / sub, dst / sub
+        if destination_subdir.exists():
+            shutil.rmtree(destination_subdir)
+        if source_subdir.is_dir():
+            shutil.copytree(
+                source_subdir,
+                destination_subdir,
+                copy_function=shutil.copy2,
+            )
+    skill_path = dst / "SKILL.md"
+    skill_path.write_text(
+        build_skill_md(src / "SKILL.md", skill_path),
+        encoding="utf-8",
+    )
+
+
+def sync_portable_skill(name: str, src: Path) -> None:
+    frontmatter, _ = split_frontmatter((src / "SKILL.md").read_text(encoding="utf-8"))
+    if frontmatter is None:
+        raise SystemExit(f"no frontmatter in {src / 'SKILL.md'}")
+    validate_portable_frontmatter(name, frontmatter)
+
+    destination = PORTABLE_SKILLS_DIR / name
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.mkdir(parents=True)
+    shutil.copy2(src / "SKILL.md", destination / "SKILL.md")
+
+    for entry in src.iterdir():
+        if entry.name == "SKILL.md" or entry.name in PORTABLE_EXCLUDES:
+            continue
+        target = destination / entry.name
+        if entry.is_dir():
+            shutil.copytree(entry, target, copy_function=shutil.copy2)
+        elif entry.is_file():
+            shutil.copy2(entry, target)
+
+
 def sync_skill(name: str) -> None:
-    src, dst = SRC_DIR / name, DST_DIR / name
-    if not src.is_dir() or not dst.is_dir():
-        print(f"  SKIP {name} (not present in both trees)")
-        return
-    # Rebuild references/, scripts/, assets/ from source as a delete-aware mirror:
-    # a file removed from the source skill must not keep shipping in the plugin.
-    for sub in SUBDIRS:
-        s, d = src / sub, dst / sub
-        if d.exists():
-            shutil.rmtree(d)
-        if s.is_dir():
-            shutil.copytree(s, d)
-    (dst / "SKILL.md").write_text(build_skill_md(src / "SKILL.md", dst / "SKILL.md"))
+    validate_skill_name(name)
+    src, native = SRC_DIR / name, NATIVE_SKILLS_DIR / name
+    if not src.is_dir() or not native.is_dir():
+        raise SystemExit(f"{name} is not present in both skill trees")
+    sync_native_skill(name, src, native)
+    sync_portable_skill(name, src)
     print(f"  SYNCED {name}")
 
 
 def shared_skills():
     return sorted(
         p.name for p in SRC_DIR.iterdir()
-        if p.is_dir() and (DST_DIR / p.name).is_dir()
+        if p.is_dir() and (NATIVE_SKILLS_DIR / p.name).is_dir()
     )
+
+
+def remove_stale_portable_skills(expected: set[str]) -> None:
+    if not PORTABLE_SKILLS_DIR.exists():
+        return
+    for path in PORTABLE_SKILLS_DIR.iterdir():
+        if path.is_dir() and path.name not in expected:
+            shutil.rmtree(path)
+        elif path.is_file():
+            path.unlink()
 
 
 def main():
     targets = sys.argv[1:] or shared_skills()
-    print("Syncing skills/ -> plugin/skills/")
+    if not sys.argv[1:]:
+        remove_stale_portable_skills(set(targets))
+
+    print("Syncing skills/ -> native and portable plugin distributions")
     for name in targets:
         sync_skill(name)
-    print("Done.")
+
+    PORTABLE_PLUGIN_DIR.mkdir(exist_ok=True)
+    shutil.copy2(ROOT / "plugin" / "LICENSE", PORTABLE_PLUGIN_DIR / "LICENSE")
+    print(f"Done: {len(targets)} skill(s) synced.")
 
 
 if __name__ == "__main__":

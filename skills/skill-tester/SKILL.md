@@ -85,6 +85,22 @@ For skills that exist in both `skills/` and `plugin/skills/`:
 | Content alignment | Body content matches or plugin has extracted references |
 | Beta markers consistent | If `skills/` copy has `[Beta]`, plugin copy should too |
 
+### 6. Portable Agent Plugins Validation (agent-performed — not covered by run-tests.sh)
+
+After regenerating with `./scripts/sync-plugin.sh`, run:
+
+```bash
+python3 scripts/test-sync-plugin.py
+uv run --with jsonschema==4.25.1 --with PyYAML==6.0.3 \
+  python3 scripts/validate-agent-plugin.py
+```
+
+This validates the portable manifest against the vendored official Agent
+Plugins 1.0.0 schema, checks curated skill membership, rejects non-portable
+frontmatter, verifies canonical bytes and executable modes, and enforces
+release-version alignment. Use the Agent Skills reference CLI for an independent
+format check of generated `agent-plugin/skills/*`.
+
 ## Output Format
 
 ```markdown
@@ -121,9 +137,9 @@ bash skills/skill-tester/scripts/run-tests.sh
 
 Coverage note: `run-tests.sh` automates Checks 1-4 (minus the
 references-exist portion of Check 2 and provider-specific semantic comparison
-in Check 3). Check 5 and those semantic/reference checks are performed by the
-agent when `/skill-tester` is invoked -- a green script run alone does not mean
-they passed.
+in Check 3). Checks 5-6 and those semantic/reference checks are performed by
+the agent when `/skill-tester` is invoked -- a green script run alone does not
+mean they passed.
 
 ## What This Skill Does NOT Do
 
