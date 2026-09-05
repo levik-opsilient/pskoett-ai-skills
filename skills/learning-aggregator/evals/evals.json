@@ -1,0 +1,33 @@
+{
+  "skill_name": "learning-aggregator",
+  "evals": [
+    {
+      "id": 1,
+      "name": "dedupe-copied-log-and-trace",
+      "prompt": "Three repository locations contain the same LRN entry ID and normalized content. A cloud trace and a local trace also describe that same session occurrence. Compute recurrence for its Pattern-Key.",
+      "expected_output": "The agent must collapse the copied LRN entries and the cloud/local trace mirrors into one canonical occurrence, retain all source references as corroboration, and avoid counting paths or checkpoint IDs as distinct tasks.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "legacy-provenance-cannot-prove-distinct-tasks",
+      "prompt": "A legacy learning says Recurrence-Count: 4 but has no Task-ID, Session-ID, Occurrence-ID, Source-Ref, or other task lineage. Is it promotion-ready?",
+      "expected_output": "No. The recurrence claim may contribute once to recurrence magnitude, but unknown-lineage evidence counts as at most one distinct task and cannot prove the required two distinct tasks. The report should mark the cross-task evidence unverified.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "terminal-pattern-not-repromoted",
+      "prompt": "A pattern has three occurrences across two tasks within 30 days, but every entry is already Status: promoted or resolved and there is no newer active occurrence. Rank it.",
+      "expected_output": "The agent should retain the pattern as historical evidence but must not list it as promotion-ready. Only a newer pending or in_progress occurrence after the latest terminal event can reopen it as a regression candidate.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "zero-entire-checkpoints-fallback",
+      "prompt": "Run learning-aggregator --deep. Entire is installed and enabled, but `entire rewind --list` returns a valid empty list.",
+      "expected_output": "The agent must treat zero checkpoints as unavailable trace evidence, fall back to .learnings-only analysis, and report that limitation. It must not claim that no sessions or no recurrence exist.",
+      "files": []
+    }
+  ]
+}

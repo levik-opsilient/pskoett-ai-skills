@@ -49,6 +49,7 @@ promoted-to: CLAUDE.md  # or AGENTS.md, .github/copilot-instructions.md, or equi
 created: YYYY-MM-DD
 last-run: YYYY-MM-DD
 last-result: pass | fail | skip
+evidence-level: presence | structural | behavioral
 ---
 
 ## What This Tests
@@ -64,7 +65,7 @@ last-result: pass | fail | skip
 
 ## Verification Method
 
-[One of: grep-check, command-check, file-check, rule-check]
+[One of: grep-check, command-check, file-check, rule-check, behavior-check]
 
 ### grep-check
 Search for a pattern that should (or should not) exist:
@@ -96,6 +97,22 @@ target: CLAUDE.md  # or AGENTS.md, .github/copilot-instructions.md
 contains: "[the promoted rule text or key phrase]"
 expect: found
 ```
+
+`rule-check` proves only that guidance is installed. It must not be reported as
+proof that an agent follows the guidance.
+
+### behavior-check
+Exercise the relevant behavior with synthetic positive and negative controls:
+```
+command: bash bench/run-contract-case.sh bounded-retry
+expect_exit: 0
+positive_control: "transient failure is retried within budget"
+negative_control: "deterministic failure changes input or stops"
+```
+
+A behavioral pass requires observable evidence for both controls. Prefer the
+repository's existing test, bench, or fixture mechanism; do not create a new
+test framework for one eval.
 
 ## Expected Result
 
@@ -131,11 +148,17 @@ For each eval case:
    - `command-check`: Run the command via Bash, check exit code and/or output
    - `file-check`: Use Read/Glob to verify file/section existence
    - `rule-check`: Read the target file, search for the expected content
+   - `behavior-check`: Run the existing synthetic fixture or bench case and
+     require the positive control to pass and the negative control to be
+     rejected
    - `skill-check`: Run `quick_validate.py` on a skill directory (see Skill Validation below)
    - `script-check`: Run a custom mcp-script by name (see Custom Verification Methods)
 3. **Compare result** to expected
-4. **Update `last-run` and `last-result`** in the eval case file
-5. **Update `EVAL_INDEX.md`** with the result
+4. **Check evidence strength** — a presence/structural method cannot satisfy a
+   behavioral assertion. Mark the case `fail` with `insufficient_evidence`
+   rather than upgrading the claim.
+5. **Update `last-run` and `last-result`** in the eval case file
+6. **Update `EVAL_INDEX.md`** with the result
 
 ### Regression Report
 
@@ -190,7 +213,9 @@ For projects with a CI pipeline, eval-creator can run as a scheduled check:
 
 ## Custom Verification Methods (mcp-scripts)
 
-Beyond the four built-in methods (grep-check, command-check, file-check, rule-check), projects can define custom verification tools as mcp-scripts for complex assertions that the built-ins can't express.
+Beyond the five built-in methods (grep-check, command-check, file-check,
+rule-check, behavior-check), projects can define custom verification tools as
+mcp-scripts for complex assertions that the built-ins can't express.
 
 Example — an eval that verifies a promoted auth rule is enforced:
 

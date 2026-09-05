@@ -58,11 +58,11 @@ Evaluate these signals to determine task class:
 ### Batch
 **Examples:** implementing multiple features from a spec, fixing a list of review findings, hardening multiple files
 **Signals:** 5+ discrete tasks, spec or issue list provided, breadth over depth
-**Pipeline:** Team-based pipeline (`agent-teams-simplify-and-harden`)
+**Pipeline:** Orchestrated standard pipeline. Split work into bounded units, use `control-session-orchestrator` when persistent multi-session coordination is available, and retain per-unit verification plus independent final audits.
 
 ## Non-Trivial Code Change Definition
 
-The canonical definition lives in `skills/simplify-and-harden/SKILL.md` (lines 60-69). Refer to that source for the full rule. In short: the diff must touch at least one executable source file AND include either >= 10 changed logic lines or a high-impact logic change. Docs-only, config-only, tests-only, and generated artifacts are non-trivial = false.
+The canonical definition lives in `skills/simplify-and-harden/SKILL.md`. Refer to that source for the full rule. In short: executable changes qualify by size or impact, while high-impact configuration and policy changes qualify by risk even when no executable source changed. Docs-only, comments-only, formatting-only, tests-only, and generated-only changes do not qualify.
 
 ## Planning Depth Calibration
 
@@ -80,6 +80,6 @@ From `plan-interview`, match refinement depth to classification:
 ## Edge Cases
 
 - **Task escalation:** A Medium task can reveal itself as Large mid-execution. If `context-surfing` fires a drift exit or `intent-framed-agent` detects significant scope expansion, re-classify upward and add pipeline stages.
-- **User override:** User can force depth (`depth=small`) or variant (`variant=teams`) regardless of classification.
+- **User override:** User can force depth (`depth=small`) or variant (`variant=orchestrated`) regardless of classification.
 - **Ambiguous scope:** When uncertain, start with Medium. Add skills if drift or quality issues appear.
-- **Hybrid tasks:** A task with both a single complex feature AND several small fixes → route the complex feature through standard pipeline, batch the fixes through teams, or do the complex feature first then batch the rest.
+- **Hybrid tasks:** A task with both a single complex feature AND several small fixes → route the feature and bounded fix units through the standard pipeline, coordinating them when useful.

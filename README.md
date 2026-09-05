@@ -113,7 +113,6 @@ skills/
 
 | Skill | Description |
 |-------|-------------|
-| [agent-teams-simplify-and-harden](skills/agent-teams-simplify-and-harden/) | Implementation + audit loop using parallel agent teams with structured simplify, harden, and document passes |
 | [context-surfing](skills/context-surfing/) | Monitors context window health and rides peak context quality for maximum output fidelity during multi-step execution |
 | [control-session-orchestrator](skills/control-session-orchestrator/) | Control-plane workflow for coordinating multi-agent, multi-session project work from Codex, GitHub Copilot, or agent-app sessions |
 | [intent-framed-agent](skills/intent-framed-agent/) | Captures a lightweight intent contract at execution start and monitors coding-task drift until resolution |
@@ -176,7 +175,7 @@ Each skill prevents a distinct failure mode:
 
 **Stage 3 — Verification** (machine gate): `verify-gate` runs the project's compile, test, and lint commands. If any fail, `self-healing` takes the diagnosis loop: identify root cause, write the fix (script, env tweak, alt command), verify by re-running, and file a `HEAL-` entry to `.learnings/HEALS.md`. Verify-gate then re-checks. Up to 3 attempts per phase before abandoning. Only when all checks pass does work proceed to the quality review.
 
-**Stage 4 — Review** (post-completion): `simplify-and-harden` runs three passes (simplify, harden, document) on the completed work.
+**Stage 4 — Review** (post-completion): `simplify-and-harden` runs four phases (simplify, harden, document, re-verify) on the completed work.
 
 **Stage 5 — Learning** (automatic): `self-improvement` captures recurring patterns from the session to `.learnings/`.
 

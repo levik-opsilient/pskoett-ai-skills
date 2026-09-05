@@ -68,9 +68,13 @@ At execution start, emit:
 
 Rules:
 - Keep each field to 1-2 sentences.
-- Ask for confirmation before coding:
-  - `Does this capture what we are doing? Anything to adjust before I start?`
-- Do not proceed until the user confirms or adjusts.
+- Reuse current approval when an approved plan or explicit instruction to
+  proceed already covers the frame's outcome, approach, constraints, and
+  success criteria. Emit the frame for traceability and continue.
+- Ask `Does this capture what we are doing? Anything to adjust before I start?`
+  only when no current approval exists, the frame adds a material decision or
+  assumption, or scope/constraints changed.
+- Do not proceed while a material decision remains unresolved.
 
 ### Phase 2: Intent Monitor
 
@@ -97,8 +101,9 @@ This looks like it may be moving outside the stated intent.
 **Question:** Is this a deliberate pivot or accidental scope creep?
 ```
 
-If pivot is intentional, update the active intent frame and continue. If not,
-return to the original scope.
+If the user already directed the pivot, update the active intent frame and
+continue under the enduring constraints. Otherwise ask whether the apparent
+pivot is intentional. If not, return to the original scope.
 
 ### Phase 3: Intent Resolution
 
@@ -125,7 +130,11 @@ Rules:
    `Abandoned` or `Pivoted`, then open a new frame.
 3. Drift checks always target the currently active frame.
 4. Number frames sequentially within the session (`#1`, `#2`, ...).
-5. Constraints do not carry forward unless explicitly restated.
+5. Enduring constraints carry forward; frame-local choices do not. User
+   prohibitions, safety/privacy limits, authorization boundaries, repository
+   restrictions, and explicit "do not" instructions remain active until the
+   user revokes them. A local implementation choice carries forward only when
+   the new outcome still depends on it; otherwise restate it or ask.
 
 ## Entire CLI Integration
 
@@ -137,10 +146,11 @@ When tool access is available, detect Entire at activation:
 entire status 2>/dev/null
 ```
 
-- If it succeeds, mention that intent records will be captured in the session
-  transcript on the checkpoint branch. This enables `learning-aggregator --deep`
-  to later mine intent frames and drift events for cross-session scope-drift
-  patterns.
+- If it succeeds and the active host adapter records conversation lifecycle
+  events, mention that intent records are expected in the session transcript.
+  Do not infer complete transcript coverage from `entire status`; inspect the
+  available session/checkpoint state before relying on it for
+  `learning-aggregator --deep`.
 - If unavailable/failing, continue silently. Do not block execution and do not
   nag about installation.
 
@@ -150,9 +160,9 @@ Copilot/chat fallback:
 
 ### How intent frames become learning signals
 
-Each Intent Frame and Intent Check you emit is captured verbatim in Entire's
-session transcript. At cadence, `learning-aggregator --deep` reads those
-transcripts and extracts:
+When the active host adapter captures message events, each Intent Frame and
+Intent Check is available in Entire's session transcript. At cadence,
+`learning-aggregator --deep` can read the available transcripts and extract:
 
 - Frames that were resolved as `Abandoned` or `Pivoted` → potential planning
   gaps
@@ -178,13 +188,15 @@ which makes them parseable from the transcript.
 Use this skill as the front-door alignment layer for non-trivial coding work:
 1. `plan-interview` (optional, for requirement shaping)
 2. `intent-framed-agent` (execution contract + scope drift monitoring)
-3. `context-surfing` (context quality monitoring — runs concurrently with intent-framed-agent during execution)
+3. `context-surfing` (optional context-quality monitoring for Large,
+   Long-running, or explicitly context-sensitive execution)
 4. `simplify-and-harden` (post-completion quality/security pass)
 5. `self-improvement` (capture recurring patterns and promote durable rules)
 
 ### Relationship with context-surfing
 
-Both skills are live during execution. They monitor different failure modes:
+When `context-surfing` is activated, both skills are live during execution.
+They monitor different failure modes:
 
 - **intent-framed-agent** monitors *scope* drift — is the agent doing the right
   thing? It fires structured Intent Checks when work moves outside the stated

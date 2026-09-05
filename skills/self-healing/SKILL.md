@@ -100,6 +100,27 @@ The agent catches itself about to redo the failing step. That self-recognition i
 - Stale assertions, snapshot mismatches, type errors that weren't there before
 - "Weird" output that suggests environmental rather than logical bugs
 
+## Classify before retrying
+
+Before any retry, classify the failure from observed evidence:
+
+- **Deterministic** — the same input or call shape produces the same validation, parser, schema, or
+  query-planning error. Do not retry unchanged. Change the diagnosis or input materially, validate
+  locally when possible, then make at most the remaining bounded attempts.
+- **Transient** — rate limits, transport failures, temporary service unavailability, or timeouts
+  with evidence that the request may succeed later. Use bounded backoff and reduce load; do not fan
+  out retries.
+- **Shared-service/batch** — the same normalized failure appears across different item IDs. Stop the
+  batch, report the common dependency, and run one changed pilot before resuming.
+
+Normalize failure signatures by removing volatile timestamps, request IDs, and item IDs. A repeated
+structured-output validation failure is deterministic even when it occurs in a new session. A
+bounded query that repeatedly times out requires a different query plan or narrower input, not the
+same call again. Different report IDs do not make identical metadata-service failures independent.
+
+If the diagnosis cannot support one of these classifications, stop and gather evidence rather than
+guessing. Never invent tool syntax or a success-shaped fallback.
+
 ## HEAL Entry Format
 
 Append to `.learnings/HEALS.md` (create if missing):
@@ -202,8 +223,11 @@ Most heals don't need a separate proof script — the verify step is just re-run
 
 ### If verification fails
 
-1. **Once** — refine the patch and retry. First diagnosis is often wrong.
-2. **Twice** — step back and reconsider the diagnosis. Maybe the root cause is elsewhere.
+1. **Once** — classify the failure, refine the patch or input materially, and retry. First diagnosis
+   is often wrong.
+2. **Twice** — step back and reconsider the diagnosis. For a repeated deterministic signature, stop
+   unless the next attempt changes the diagnosis or input. For a shared-service signature, pause the
+   batch and return control to the orchestrator.
 3. **Three times** — stop. File `Status: abandoned` with notes on what you tried. Surface to the user. Don't flail.
 
 ### What does NOT count as verification
@@ -269,6 +293,8 @@ Then `self-improvement` (or a learning aggregator) takes over: distills the rule
 5. **Reference, don't duplicate.** Cross-link related HEAL/LRN/ERR via See Also.
 6. **Hand off recurrences.** A heal seen 3 times deserves to be in the project's permanent memory.
 7. **Don't gate the main tree on heal artifacts.** Files under `.learnings/heals/` are reference material; if a script becomes load-bearing, promote it to `scripts/`.
+8. **Pilot shared dependencies.** Prove one changed request before resuming a batch that failed with
+   one shared signature.
 
 ## Setup
 

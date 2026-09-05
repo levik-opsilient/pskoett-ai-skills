@@ -36,7 +36,6 @@ For users running the `pskoett-skills` pipeline, the integration points are:
 | [`intent-framed-agent`](../../intent-framed-agent/SKILL.md) | Establishes intent before execution; self-healing's HEAL entries reference the active intent via `Active-Context`     |
 | [`verify-gate`](../../verify-gate/SKILL.md)            | Runs build/test/lint; on failure, self-healing handles the diagnosis loop. After heal, verify-gate re-runs.               |
 | [`simplify-and-harden`](../../simplify-and-harden/SKILL.md) | Quality pass that runs *after* heals stabilize the code. Refactors that emerge during this pass are features, not heals. |
-| [`agent-teams-simplify-and-harden`](../../agent-teams-simplify-and-harden/SKILL.md) | Multi-agent variant; audit findings become heal candidates.                                          |
 | [`self-improvement`](../../self-improvement/SKILL.md)  | Receives heal handoffs at Recurrence-Count ≥ 3; promotes the distilled rule to a memory file or new skill                 |
 | [`learning-aggregator`](../../learning-aggregator/SKILL.md) | Cross-session analysis of accumulated heals + learnings for pattern detection                                        |
 | [`eval-creator`](../../eval-creator/SKILL.md)          | Turns promoted heals into permanent regression eval cases                                                                 |

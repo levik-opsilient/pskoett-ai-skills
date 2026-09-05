@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/entire-wrapper.sh hooks claude-code user-prompt-submit"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/entire-wrapper.sh hooks claude-code user-prompt-submit"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/entire-wrapper.sh hooks claude-code post-task"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/entire-wrapper.sh hooks claude-code post-task"
           }
         ]
       },
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/entire-wrapper.sh hooks claude-code post-todo"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/entire-wrapper.sh hooks claude-code post-todo"
           }
         ]
       }
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/entire-wrapper.sh hooks claude-code pre-task"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/entire-wrapper.sh hooks claude-code pre-task"
           }
         ]
       }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/entire-wrapper.sh hooks claude-code session-start"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/entire-wrapper.sh hooks claude-code session-start"
           }
         ]
       }
@@ -59,7 +59,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/entire-wrapper.sh hooks claude-code session-end"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/entire-wrapper.sh hooks claude-code session-end"
           }
         ]
       }
@@ -70,7 +70,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/entire-wrapper.sh hooks claude-code stop"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/entire-wrapper.sh hooks claude-code stop"
           }
         ]
       }

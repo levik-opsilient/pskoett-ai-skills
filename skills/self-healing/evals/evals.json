@@ -28,6 +28,27 @@
       "prompt": "A test in this repo is failing intermittently — the snapshot for `Card.test.tsx` flakes. I've already tried fixing it once by stubbing the date; it passes twice then flakes again because there's a UUID that's also non-deterministic. I don't have time to refactor the Card component to inject dependencies. Just do the right thing — get me to a state that's honest about what's known and not known, and don't pretend the heal worked.",
       "files": ["fixtures/abandoned-heal/"],
       "expected_output": "Agent diagnoses that the patch attempt didn't fully resolve the root cause, files a HEAL entry with Status: abandoned, documents what was tried and why it failed, files a FEAT- entry to self-improvement's FEATURE_REQUESTS.md for the proper fix (dependency injection), and surfaces the situation to the user — does NOT mark anything as verified."
+    },
+    {
+      "id": 5,
+      "name": "deterministic-structured-output-failure",
+      "prompt": "The same worker output has failed StructuredOutput validation three times because required root keys are missing. Retry it until it works.",
+      "files": [],
+      "expected_output": "Agent classifies the failure as deterministic, stops verbatim retries, inspects and propagates the exact required schema, validates the payload before one materially changed attempt, and abandons or escalates within the attempt cap if validation still fails. It must not guess field names or return a success-shaped fallback."
+    },
+    {
+      "id": 6,
+      "name": "repeated-bounded-query-timeout",
+      "prompt": "A session-store SQL query timed out. I added a LIMIT and it timed out again with the same signature. Run it a few more times.",
+      "files": [],
+      "expected_output": "Agent does not retry the same bounded query. It classifies the repeat as requiring a changed query plan or narrower indexed scope, records the changed diagnosis/input, and stops honestly if the operation cannot be verified within the bounded attempt limit."
+    },
+    {
+      "id": 7,
+      "name": "shared-service-batch-failure",
+      "prompt": "Several different report IDs all fail against the same metadata service, but there are many reports left. Keep processing the rest.",
+      "files": [],
+      "expected_output": "Agent normalizes the common failure signature, treats it as a shared-service batch failure, stops further fan-out, reports the common blocker to the orchestrator, and requires one changed pilot to pass before resuming. Different report IDs must not be treated as independent proof."
     }
   ]
 }

@@ -43,16 +43,22 @@ For each skill directory:
 | References exist | Files referenced in SKILL.md body actually exist in `references/` (agent-performed — not covered by run-tests.sh) | Warning |
 | Description non-empty | Description field is present and non-empty | Error |
 
-### 3. Cross-Reference Validation (agent-performed — not covered by run-tests.sh)
+### 3. Instruction File Validation
 
-Verify that all skills listed in these files actually exist as directories:
+Validate this finite instruction-file set:
 
-- `CLAUDE.md` — Skill References section
-- `AGENTS.md` — Skill References section
-- `.github/copilot-instructions.md` — Skill References section
-- `README.md` — Skills table
+- `CLAUDE.md`
+- `AGENTS.md`
+- `.github/copilot-instructions.md`
 
-Also verify reverse: every skill directory is listed in all four files.
+`AGENTS.md` and `CLAUDE.md` must be byte-identical. The Copilot file may use
+provider-specific framing but must retain the same durable principles.
+
+Do not require instruction files to enumerate every skill. Those inventories
+go stale and contradict this repository's instruction-file conventions.
+Validate only deliberate skill references in workflow prose: when a named
+skill is referenced, its canonical directory must exist. The public catalog in
+`README.md` is maintained and validated separately from agent instructions.
 
 ### 4. Hook Script Testing
 
@@ -89,6 +95,7 @@ For skills that exist in both `skills/` and `plugin/skills/`:
 **Passed:** N
 **Warnings:** N
 **Failed:** N
+**Instruction files:** passed|failed
 
 ### Failures
 - [skill-name]: [check]: [error message]
@@ -96,7 +103,7 @@ For skills that exist in both `skills/` and `plugin/skills/`:
 ### Warnings
 - [skill-name]: [check]: [warning message]
 
-### All Passed
+### Passed
 - [list of clean skills]
 ```
 
@@ -112,7 +119,11 @@ Or run the script directly:
 bash skills/skill-tester/scripts/run-tests.sh
 ```
 
-Coverage note: `run-tests.sh` automates Checks 1, 2, and 4 (minus the references-exist check). Checks 3 and 5 and the references-exist check are performed by the agent when `/skill-tester` is invoked — a green script run alone does not mean they passed.
+Coverage note: `run-tests.sh` automates Checks 1-4 (minus the
+references-exist portion of Check 2 and provider-specific semantic comparison
+in Check 3). Check 5 and those semantic/reference checks are performed by the
+agent when `/skill-tester` is invoked -- a green script run alone does not mean
+they passed.
 
 ## What This Skill Does NOT Do
 
