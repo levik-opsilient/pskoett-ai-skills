@@ -329,8 +329,14 @@ When a worker reports, first run the **result-gate**:
   Cap at 2 retries, then escalate to the user.
 - For an external schema, validate every required root key, type, and enum before applying the tested
   adapter. A valid default control-result that violates the caller's exact schema is still invalid.
-- After validation and any adapter, reject a completion whose status conflicts with its evidence
-  (for example, `status: complete` with `verification.result != pass`).
+- After validation and any adapter, reject a completion whose status conflicts with its evidence.
+  `status: complete` normally requires `verification.result: pass`.
+- A completed source-backed read-only research unit may instead use `verification.result: not-run`
+  only when its manifest scope and success criteria explicitly say runtime verification is out of
+  scope, `files_changed` is empty, and its evidence cites the inspected sources and satisfies those
+  criteria without making untested runtime claims. Record `not-run` truthfully in the manifest.
+  Unavailable tooling, omitted checks, or any implementation/configuration change is not this
+  exception and must be rejected as unverified work.
 - Accept completed work only when the block validates AND meets the success criteria.
 
 Then route:

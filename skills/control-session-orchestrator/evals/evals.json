@@ -119,6 +119,20 @@
       "prompt": "Two different report IDs fail with the same metadata-service error signature while 30 more reports are queued. The report IDs and request IDs differ.",
       "expected_output": "The control session normalizes away item and request IDs, records one shared failure signature across distinct units, pauses queued work at the configured threshold, and requires a changed diagnosis/input or explicit decision before resuming. It must not keep launching merely because report IDs differ.",
       "files": []
+    },
+    {
+      "id": 18,
+      "name": "accept-source-backed-read-only-research",
+      "prompt": "The manifest defines a read-only source audit whose success criterion is an evidence-backed findings report; runtime verification is explicitly out of scope. The worker returns strict control-result JSON with status complete, files_changed: [], verification.result: not-run, evidence citing the inspected files and line ranges, and a report_ref. Process the result.",
+      "expected_output": "The control session should accept the result when the cited evidence satisfies the declared research success criterion. Step 6 permits not-run only for this predeclared source-backed read-only case with no changed files and no untested runtime claims. It should preserve verification=not-run in the manifest rather than inventing a pass or requesting irrelevant runtime tests.",
+      "files": []
+    },
+    {
+      "id": 19,
+      "name": "reject-unverified-implementation-as-read-only",
+      "prompt": "A worker implemented a source change and returns strict control-result JSON with status complete, files_changed: [\"src/router.ts\"], verification.result: not-run, and evidence saying the test runner was unavailable. The worker calls its report source-backed analysis. Process the result.",
+      "expected_output": "The control session must reject the completion as unverified implementation. The read-only exception cannot apply when files_changed is non-empty, when tooling was merely unavailable, or when implementation/runtime claims need verification. It should request a corrected result with passing verification or route the blocker; it must not relabel the implementation as research.",
+      "files": []
     }
   ]
 }
