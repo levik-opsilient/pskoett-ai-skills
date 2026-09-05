@@ -6,15 +6,42 @@
 
 set -e
 
-# Automates SKILL.md Checks 1, 2, and 4. Checks 3 (cross-references) and
-# 5 (plugin validation) are agent-performed — see SKILL.md.
+# Automates SKILL.md Checks 1-4. Provider-specific semantic comparison,
+# reference existence, and Check 5 (plugin validation) remain agent-performed.
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 SKILLS_DIR="$REPO_ROOT/skills"
 VALIDATE="$REPO_ROOT/.claude/skills/skill-creator/scripts/quick_validate.py"
 
-pass=0; warn=0; fail=0
+tested=0; pass=0; warn=0; fail=0
+instruction_status="not-run"
+instruction_fail=0
 failures=""
 warnings=""
+passed_skills=""
+
+check_instruction_files() {
+  local instruction_file
+  for instruction_file in \
+    "$REPO_ROOT/AGENTS.md" \
+    "$REPO_ROOT/CLAUDE.md" \
+    "$REPO_ROOT/.github/copilot-instructions.md"; do
+    if [ ! -f "$instruction_file" ]; then
+      failures="${failures}\n  ✗ instructions: missing ${instruction_file#"$REPO_ROOT/"}"
+      instruction_status="failed"
+      instruction_fail=1
+      return
+    fi
+  done
+
+  if ! cmp -s "$REPO_ROOT/AGENTS.md" "$REPO_ROOT/CLAUDE.md"; then
+    failures="${failures}\n  ✗ instructions: AGENTS.md and CLAUDE.md differ"
+    instruction_status="failed"
+    instruction_fail=1
+    return
+  fi
+
+  instruction_status="passed"
+}
 
 check_skill() {
   local skill_dir="$1"
@@ -24,12 +51,20 @@ check_skill() {
   [[ "$skill" == *-ci ]] && return
   [[ "$skill" == "skill-tester" ]] && return
   [[ "$skill" == "skill-tester-ci" ]] && return
+  tested=$((tested + 1))
+
+  if [ ! -f "$skill_dir/SKILL.md" ]; then
+    failures="${failures}\n  ✗ $skill: missing SKILL.md"
+    fail=$((fail + 1))
+    return
+  fi
 
   # 1. Anthropic spec validation
   if [ -f "$VALIDATE" ]; then
-    result=$(python3 "$VALIDATE" "$skill_dir" 2>&1)
-    code=$?
-    if [ $code -ne 0 ]; then
+    if result=$(python3 "$VALIDATE" "$skill_dir" 2>&1); then
+      :
+    else
+      code=$?
       failures="${failures}\n  ✗ $skill: spec: $result"
       fail=$((fail + 1))
       return
@@ -95,6 +130,7 @@ check_skill() {
   fi
 
   pass=$((pass + 1))
+  passed_skills="${passed_skills}${skill}"$'\n'
 }
 
 echo "## Skill Test Results"
@@ -111,19 +147,22 @@ if [ -n "$1" ]; then
   fi
 else
   # Test all
+  check_instruction_files
   for d in "$SKILLS_DIR"/*/; do
     check_skill "$d"
   done
 fi
 
-total=$((pass + warn + fail))
-echo "**Skills tested:** $total"
+echo "**Skills tested:** $tested"
 echo "**Passed:** $pass"
 echo "**Warnings:** $warn"
-echo "**Failed:** $fail"
+echo "**Failed:** $((fail + instruction_fail))"
+if [ -z "$1" ]; then
+  echo "**Instruction files:** $instruction_status"
+fi
 echo
 
-if [ $fail -gt 0 ]; then
+if [ $((fail + instruction_fail)) -gt 0 ]; then
   echo "### Failures"
   echo -e "$failures"
   echo
@@ -137,13 +176,10 @@ fi
 
 if [ $pass -gt 0 ]; then
   echo "### Passed"
-  for d in "$SKILLS_DIR"/*/; do
-    skill=$(basename "$d")
-    [[ "$skill" == *-ci ]] && continue
-    [[ "$skill" == "skill-tester" ]] && continue
-    [[ "$skill" == "skill-tester-ci" ]] && continue
+  while IFS= read -r skill; do
+    [ -n "$skill" ] || continue
     echo "  ✓ $skill"
-  done
+  done <<< "$passed_skills"
 fi
 
-exit $fail
+exit $((fail + instruction_fail))

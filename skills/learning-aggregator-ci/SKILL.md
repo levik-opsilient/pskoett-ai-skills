@@ -64,22 +64,29 @@ Hard rules for headless execution:
 - **`call-workflow:`** triggers `eval-creator-ci` after aggregation completes to create evals from newly promoted patterns. Compile-time fan-out with proper dependency wiring.
 - **`upload-artifact:`** persists the gap report YAML for consumption by downstream workflows or human review.
 
+Cache state must declare aggregation schema `provenance-v1` and retain canonical occurrence
+fingerprints, stable task lineage, and terminal-event boundaries. Ignore and rebuild any cache that
+omits this version or uses an older aggregation schema; aggregate counts from the pre-deduplication
+contract are not a valid baseline.
+
 ## Workflow Rules
 
 The CI agent follows these rules in order:
 
 1. Read all files in `.learnings/`: `LEARNINGS.md`, `ERRORS.md`, `FEATURE_REQUESTS.md`, `HEALS.md`
-2. Parse each entry's metadata: `Pattern-Key`, `Recurrence-Count`, `First-Seen`, `Last-Seen`, `Priority`, `Status`, `Area`, `Related Files`, `Tags`. For HEAL entries, also parse `Trigger`, `Active-Context`, and any `Handoff` block — Handoff blocks at the promotion threshold are promotion-ready by definition and must appear in the gap report
-3. Group entries by `Pattern-Key` (exact match only — no fuzzy grouping in CI)
-4. For each group: sum recurrences, count distinct tasks, compute time window, collect evidence
-5. Flag entries without `Pattern-Key` as ungrouped
-6. Classify each group's gap type: knowledge gap, tool gap, skill gap, ambiguity, or reasoning failure
-7. Rank groups by: promotion-ready first, then approaching threshold, then by priority (critical > high > medium > low)
-8. Emit structured YAML under key `learning_aggregator_ci`
-9. Post gap report as a comment on the triggering issue or as a new issue if running on schedule
-10. Do not modify repository files
+2. Parse each entry's metadata: `Pattern-Key`, `Recurrence-Count`, `First-Seen`, `Last-Seen`, `Priority`, `Status`, `Area`, `Related Files`, `Tags`, and optional provenance fields `Task-ID`, `Session-ID`, `Occurrence-ID`, `Source-Ref`, `Copied-From`. For HEAL entries, also parse `Trigger`, `Active-Context`, and any `Handoff` block
+3. Before grouping, collapse copies with the same entry ID/content or occurrence ID across repo locations, mirrors, forks, forwards, and cloud/local sources. When explicit occurrence IDs are absent, use task/session/source lineage and normalized evidence. Different paths are not independent evidence
+4. Group canonical occurrences by `Pattern-Key` (exact match only — no fuzzy grouping in CI)
+5. For each group: count deduplicated recurrences, count distinct tasks from stable provenance, compute the time window, and collect evidence. A legacy entry without stable task/session lineage contributes its declared recurrence once but all unknown-lineage evidence counts as at most one distinct task
+6. Flag entries without `Pattern-Key` as ungrouped
+7. Treat `promoted`, `promoted_to_skill`, `resolved`, and `wont_fix` as terminal for their recorded occurrence. Keep terminal-only groups as history, not promotion candidates. Reopen only for newer active evidence after the latest terminal event; a prior Handoff alone does not re-promote the pattern
+8. Classify each actionable group's gap type: knowledge gap, tool gap, skill gap, ambiguity, or reasoning failure
+9. Rank groups by: promotion-ready first, then approaching threshold, then by priority (critical > high > medium > low)
+10. Emit structured YAML under key `learning_aggregator_ci`
+11. Post gap report as a comment on the triggering issue or as a new issue if running on schedule
+12. Do not modify repository files
 
-**Promotion threshold** (same rule as `learning-aggregator` and `self-improvement`): a group is promotion-ready when `Recurrence-Count >= 3`, seen in `>= 2` distinct tasks, within a 30-day window.
+**Promotion threshold** (same rule as `learning-aggregator` and `self-improvement`): a group is promotion-ready when it has `>= 3` deduplicated recurrences, seen in `>= 2` distinct tasks proven by stable provenance, within a 30-day window.
 
 ## Output Schema
 

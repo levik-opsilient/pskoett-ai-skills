@@ -20,16 +20,18 @@ For headless/CI execution, use `simplify-and-harden-ci`.
 ```markdown
 ## Post-Completion: Simplify & Harden
 
-After completing any coding task, run the Simplify & Harden review before 
-signaling done. This is mandatory for all non-trivial code changes.
+After completing any coding task, run the Simplify & Harden review before
+signaling done. This is mandatory for non-trivial code changes and high-impact
+configuration, workflow, permission, deployment, or security-policy changes.
 
 **Scope:** Only review files you modified in this task. Do not touch adjacent code.
 
 **Pass 1 -- Simplify:**
-- The default action is lightweight cleanup: remove dead code, unused imports, 
-  and scaffolding. Fix unclear names. Tighten control flow. Reduce unnecessary 
-  public API surface. In interactive mode, apply these cosmetic fixes
-  automatically. For CI/headless mode, use `simplify-and-harden-ci`.
+- The default action is lightweight cleanup. Apply only changes proven
+  behavior-preserving, such as removing a task-created unused import.
+  Naming, control-flow, visibility, API, policy, permission, deployment, and
+  security changes require approval when their effect is observable or
+  uncertain. For CI/headless mode, use `simplify-and-harden-ci`.
 - Refactoring (consolidation, restructuring, abstraction changes) is NOT the 
   default. Only propose a refactor when it is genuinely necessary or the benefit 
   is substantial. The bar is: would a senior engineer say the current state is 
@@ -38,8 +40,9 @@ signaling done. This is mandatory for all non-trivial code changes.
   Present refactors one at a time.
 
 **Pass 2 -- Harden:**
-- In interactive mode, apply simple security patches (input validation, output
-  escaping) automatically. For CI/headless mode, use `simplify-and-harden-ci`.
+- Apply a security patch directly only when the approved acceptance contract
+  requires it and a targeted check can verify it. Otherwise ask for approval.
+  For CI/headless mode, use `simplify-and-harden-ci`.
 - For any security refactor: describe the vulnerability, severity, attack vector, 
   and proposed fix. Wait for explicit approval before proceeding.
 
@@ -48,11 +51,15 @@ signaling done. This is mandatory for all non-trivial code changes.
   implementation. If a future reader would need more than 5 seconds to understand 
   why something exists, comment it.
 
+**Pass 4 -- Re-verify:**
+- Re-run the smallest existing checks that cover every review edit. Do not
+  signal completion from pre-edit verification.
+
 **Budget:** Additional changes must not exceed 20% of the original diff. If you 
 hit the limit, stop and report what you found.
 
-**Output:** End with a structured summary of what you applied, what you flagged, 
-and what you left alone with reasoning.
+**Output:** End with a structured summary of what you applied, what you flagged,
+what you left alone with reasoning, and the verification evidence.
 ```
 
 ### CLAUDE.md (Claude Code)
@@ -69,10 +76,10 @@ the Simplify & Harden review on your own work.
 - Time: spend no more than 60 seconds on the review
 
 ### Simplify
-Your default action is lightweight cleanup. Remove dead code, unused imports, 
-and leftover scaffolding. Fix unclear names. Flatten unnecessary nesting. 
-Reduce public surface area. In interactive mode, apply these directly -- they
-are cosmetic, not structural. For CI/headless mode, use
+Your default action is lightweight cleanup. Apply only changes proven
+behavior-preserving. Naming, control-flow, visibility, API, policy, permission,
+deployment, and security changes require approval when their effect is
+observable or uncertain. For CI/headless mode, use
 `simplify-and-harden-ci`.
 
 Do NOT default to refactoring. A refactor (merging functions, changing 
@@ -85,20 +92,26 @@ One refactor at a time, never batched.
 ### Harden
 Review your work for input validation gaps, injection vectors (SQL, XSS, 
 command, path traversal), auth/authz issues, hardcoded secrets, error handling 
-that leaks data, and race conditions. In interactive mode, apply simple patches
-silently. For CI/headless mode, use `simplify-and-harden-ci`. For security
-refactors that change code structure: stop, describe the vulnerability with
-severity and attack vector, propose the fix, and ask me to approve.
+that leaks data, and race conditions. Apply a patch directly only when the
+approved acceptance contract requires it and a targeted check can verify it.
+For CI/headless mode, use `simplify-and-harden-ci`. For other security changes:
+stop, describe the vulnerability with severity and attack vector, propose the
+fix, and ask me to approve.
 
 ### Document
 Add up to 5 brief comments on non-obvious decisions. Especially: workarounds, 
 performance choices, and anything that looks wrong but is intentional.
+
+### Re-verify
+Re-run the smallest existing checks that cover every review edit. Do not signal
+completion from pre-edit verification.
 
 ### Output
 After the review, give me a short summary:
 - What you fixed (cosmetic + patches)
 - What you proposed and I approved/rejected
 - What you noticed but left alone, and why
+- What verification ran after review edits and whether it passed
 ```
 
 ### .github/copilot-instructions.md (GitHub Copilot)
@@ -106,14 +119,15 @@ After the review, give me a short summary:
 ```markdown
 ## Post-Completion: Simplify & Harden
 
-After completing a coding task, perform a self-review before marking the task 
-as done. This review has three passes.
+After completing a coding task, perform a self-review before marking the task
+as done. Review high-impact configuration and policy changes too. This review
+has four phases.
 
 **Simplify:** Look at the code you just wrote with fresh eyes. Your default 
-action is cleanup: remove dead code, unused imports, and scaffolding left over 
-from iteration. Fix unclear names. Flatten unnecessarily nested logic. These 
-cosmetic fixes can be applied directly in interactive mode. For CI/headless
-mode, use `simplify-and-harden-ci`. Refactoring (merging functions, changing
+action is cleanup. Apply only changes proven behavior-preserving. Naming,
+control-flow, visibility, API, policy, permission, deployment, and security
+changes require approval when their effect is observable or uncertain. For
+CI/headless mode, use `simplify-and-harden-ci`. Refactoring (merging functions, changing
 abstractions, restructuring) is NOT the default. Only propose a refactor when 
 the current code is genuinely wrong or the improvement is substantial -- not 
 just "slightly better." If you do propose one, describe it and ask for approval. 
@@ -121,14 +135,16 @@ One at a time.
 
 **Harden:** Check your work for security issues: unvalidated inputs, injection 
 risks, missing auth checks, hardcoded credentials, error messages that leak 
-internals, and unsafe concurrency patterns. In interactive mode, apply
-straightforward fixes (adding a bounds check, escaping output) directly. For
-CI/headless mode, use `simplify-and-harden-ci`. For anything that requires
-structural changes, describe the issue with severity and proposed fix, and ask
-for approval.
+internals, and unsafe concurrency patterns. Apply a patch directly only when
+the approved acceptance contract requires it and a targeted check can verify
+it. For CI/headless mode, use `simplify-and-harden-ci`. For other changes,
+describe the issue with severity and proposed fix, and ask for approval.
 
 **Document:** Add up to 5 short comments explaining non-obvious decisions in the 
 code you wrote. Focus on the "why", not the "what".
+
+**Re-verify:** Re-run the smallest existing checks that cover every review
+edit. Do not mark the task done from pre-edit verification.
 
 **Constraints:**
 - Only touch files you modified in this task
@@ -143,18 +159,21 @@ code you wrote. Focus on the "why", not the "what".
 
 After finishing a coding task, self-review before responding with "done."
 
-Simplify: Default action is cleanup -- remove dead code, unused imports, fix 
-naming, tighten control flow. In interactive mode, apply these directly. In
+Simplify: Default action is cleanup. Apply only changes proven
+behavior-preserving; ask before observable or uncertain naming, control-flow,
+visibility, API, policy, permission, deployment, or security changes. In
 CI/headless mode, use `simplify-and-harden-ci`. Refactoring is rare. Only
 propose a refactor when the code is genuinely wrong or the win is substantial.
 If you do, describe it and wait for my approval. One at a time.
 
-Harden: Fix obvious security gaps (missing validation, unescaped output, bare 
-credentials) directly in interactive mode. For CI/headless mode, use
-`simplify-and-harden-ci`. For structural security fixes: describe the vulnerability,
-severity, and proposed fix. Wait for approval.
+Harden: Apply a patch directly only when the approved acceptance contract
+requires it and a targeted check can verify it. Otherwise describe the
+vulnerability, severity, and proposed fix, then wait for approval. For
+CI/headless mode, use `simplify-and-harden-ci`.
 
 Document: Up to 5 comments on non-obvious decisions.
+
+Re-verify: Run the smallest existing checks covering every review edit.
 
 Rules:
 - Only files you changed in this task
@@ -170,16 +189,19 @@ Rules:
 
 Before signaling task completion, review your own work:
 
-1. Simplify -- default action is cleanup: remove dead code, fix naming, tighten 
-   control flow, reduce API surface. In interactive mode, apply directly. For
+1. Simplify -- default action is cleanup. Apply only changes proven
+   behavior-preserving; ask before observable or uncertain naming,
+   control-flow, visibility, API, policy, permission, deployment, or security
+   changes. For
    CI/headless mode, use `simplify-and-harden-ci`. Refactoring is the exception, not
    the rule. Only propose a refactor when genuinely necessary or the benefit is
    substantial. Always ask before applying.
-2. Harden -- check for input validation, injection vectors, auth gaps, leaked 
-   secrets, unsafe error handling. In interactive mode, apply simple patches
-   directly. For CI/headless mode, use `simplify-and-harden-ci`. For structural
-   security changes: ask first.
+2. Harden -- check for input validation, injection vectors, auth gaps, leaked
+   secrets, unsafe error handling. Apply a patch directly only when the
+   approved acceptance contract requires it and a targeted check can verify
+   it. For CI/headless mode, use `simplify-and-harden-ci`. Otherwise ask first.
 3. Document -- up to 5 comments on non-obvious decisions.
+4. Re-verify -- rerun the smallest existing checks covering every review edit.
 
 Scope: only files you touched. Budget: 20% max additional diff. Simplify is the 
 default. Refactors are rare and always require explicit approval.
@@ -193,20 +215,20 @@ default. Refactors are rare and always require explicit approval.
 Before signaling task completion in OpenClaw, run Simplify & Harden on the 
 files you changed in this task.
 
-Use this skill for coding tasks only (writing or modifying executable source
-code). Do NOT run it for general-agent work such as research, planning,
-documentation-only edits, operations/admin tasks, or other non-coding requests.
-If no executable code was changed, skip this skill.
+Use this skill for executable source changes and high-impact configuration,
+workflow, permission, deployment, or security-policy changes. Do NOT run it
+for general-agent work such as research, planning, documentation-only edits,
+operations/admin tasks, or other non-coding requests.
 
 **Scope and budget:**
 - Only review files modified in this task
 - Keep additional changes under 20% of the original diff
-- Run passes in order: simplify, harden, document
+- Run phases in order: simplify, harden, document, re-verify
 
 **Simplify (default posture):**
-- Apply lightweight cleanup first (dead code, unused imports, naming, control
-  flow)
-- In interactive sessions, apply cosmetic fixes directly
+- Apply only cleanup proven behavior-preserving
+- Ask before observable or uncertain naming, control-flow, visibility, API,
+  policy, permission, deployment, or security changes
 - Do not refactor by default
 - For any refactor, STOP, describe the proposed change, and wait for explicit
   approval before applying
@@ -214,12 +236,16 @@ If no executable code was changed, skip this skill.
 **Harden:**
 - Check for validation gaps, injection vectors, auth/authz issues, secrets,
   data leaks, and race conditions
-- In interactive sessions, apply straightforward security patches directly
-- For security refactors, describe severity + attack vector and wait for
+- Apply a patch directly only when the approved acceptance contract requires
+  it and a targeted check can verify it
+- For other security changes, describe severity + attack vector and wait for
   explicit approval
 
 **Document:**
 - Add up to 5 short comments for non-obvious decisions
+
+**Re-verify:**
+- Rerun the smallest existing checks covering every review edit
 
 **Output:**
 - End with a structured summary of applied fixes, approved/rejected refactors,
@@ -239,8 +265,9 @@ that must be preserved:
 2. **Budget cap** -- 20% max additional diff
 3. **Simplify-first posture** -- cleanup is the default, refactoring is the exception
 4. **Refactor stop hook** -- structural changes always require human approval
-5. **Three passes** -- simplify, harden, document (in that order)
-6. **Structured output** -- summary of applied, approved, rejected, and flagged items
+5. **Four phases** -- simplify, harden, document, re-verify (in that order)
+6. **Post-edit verification** -- rerun applicable checks after review edits
+7. **Structured output** -- summary of applied, approved, rejected, flagged, and verified items
 
 > **Precaution:** The refactor stop hook depends on the agent actually pausing 
 > and waiting for human input. Not all agents are equally reliable at this. Some 

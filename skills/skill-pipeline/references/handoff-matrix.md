@@ -6,12 +6,11 @@ Artifact flow, signal routing, precedence rules, and budget constraints across t
 
 | Producing Skill | Artifact | Consuming Skill(s) |
 |----------------|----------|-------------------|
-| `plan-interview` | `docs/plans/plan-NNN-<slug>.md` | `intent-framed-agent` (context), `context-surfing` (wave anchor), `agent-teams` (task extraction) |
+| `plan-interview` | `docs/plans/plan-NNN-<slug>.md` | `intent-framed-agent` (context), `context-surfing` (wave anchor), optional `control-session-orchestrator` work-unit breakdown |
 | `intent-framed-agent` | Intent Frame (in-session) | `context-surfing` (wave anchor), handoff files on exit |
 | `context-surfing` | `.context-surfing/handoff-[slug]-[timestamp].md` | Next session (resume), `plan-interview` (replanning input) |
 | `simplify-and-harden` | `learning_loop.candidates` (YAML) | `self-improvement` (pattern logging) |
 | `simplify-and-harden-ci` | PR comment + check run + YAML findings | `self-improvement-ci` (recurrence tracking) |
-| `agent-teams` | Learning loop candidates (same format as S&H) | `self-improvement` (cross-team pattern aggregation) |
 | `self-healing` | `.learnings/HEALS.md` (HEAL entries with verification proof) + `.learnings/heals/<HEAL-ID>/` (lazy artifacts: scripts, patches, notes) | `pre-flight-check` (surfaces prior heals by Pattern-Key / Active-Context); `learning-aggregator` (cross-session recurrence); `self-improvement` (Handoff blocks at Recurrence ≥ 3) |
 | `self-improvement` | `.learnings/LEARNINGS.md`, `.learnings/ERRORS.md`, `.learnings/FEATURE_REQUESTS.md` | Promotion targets: `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md` |
 
@@ -20,13 +19,13 @@ Artifact flow, signal routing, precedence rules, and budget constraints across t
 | Signal | Source | Action |
 |--------|--------|--------|
 | Task classified | `skill-pipeline` | Activate appropriate skills |
-| Plan approved by user | `plan-interview` | Auto-start execution (no "proceed" confirmation) |
+| Plan approved by user | `plan-interview` | Auto-start execution; a faithful intent frame reuses this approval |
 | Planning-to-execution transition | User cues ("go ahead", "implement this") | Activate `intent-framed-agent` |
-| Intent frame + plan established | `intent-framed-agent` + `plan-interview` | `context-surfing` auto-activates |
-| Task completion (exit code 0, PR ready) | Implementation | Activate `simplify-and-harden` (if non-trivial diff) |
+| Large/Long-running task or explicit context-pressure signal | `skill-pipeline` or user | Activate `context-surfing` |
+| Task completion (exit code 0, PR ready) | Implementation | Activate `simplify-and-harden` for non-trivial executable changes or high-impact configuration/policy changes |
 | Intent Resolution emitted | `intent-framed-agent` | Signal `simplify-and-harden` readiness |
 | Drift exit (strong signal) | `context-surfing` | Stop execution, write handoff file, notify user |
-| Weak drift signal | `context-surfing` | Recovery protocol (re-anchor, reconcile, escalate if uncertain) |
+| Weak drift signal | `context-surfing` | One local re-anchor, one cold-context check, then escalate or exit |
 | Intent Check fired | `intent-framed-agent` | Pause, evaluate scope, user decides |
 | Command / test / build / lint failure | Any execution step (esp. `verify-gate`) | Activate `self-healing` (diagnose → patch → verify → file HEAL) |
 | Missing capability / helper needed | Implementation | Activate `self-healing` (write the helper, save under `.learnings/heals/<HEAL-ID>/`, file HEAL) |
@@ -39,7 +38,7 @@ Artifact flow, signal routing, precedence rules, and budget constraints across t
 1. **context-surfing exit > intent-framed-agent Intent Check** — If both fire simultaneously, resolve context degradation first. Degraded context makes scope checks unreliable.
 2. **simplify-and-harden re-entry guard** — The skill does not run twice on the same task. No re-entry loops.
 3. **Plan-interview is a human gate** — Never auto-invoke. Recommend when task classifies as Large, but user decides.
-4. **Quality gates are non-negotiable** (for agent-teams): clean compile, tests pass, exit condition met, no TODO/FIXME without tasks.
+4. **Quality gates are non-negotiable:** clean compile, tests pass, observable acceptance criteria hold, and audit-driven edits are re-verified.
 
 ## Budget Constraints
 
@@ -47,23 +46,18 @@ Artifact flow, signal routing, precedence rules, and budget constraints across t
 |-------|-----------|-------|
 | `simplify-and-harden` | Max additional diff | 20% of original diff size |
 | `simplify-and-harden` | Max execution time | 60 seconds |
-| `agent-teams` | Max audit rounds | 3 |
-| `agent-teams` | Diff growth cap | 30% above original implementation diff |
-| `agent-teams` | Agent sizing (small codebase) | 1-2 impl + 2 auditors |
-| `agent-teams` | Agent sizing (medium codebase) | 2-3 impl + 2-3 auditors |
-| `agent-teams` | Agent sizing (large codebase) | 3-5 impl + 3 auditors |
 | `simplify-and-harden` | Document pass | Max 5 comments |
 
 ## Context File Loading
 
-From `context-surfing`, always load at activation:
-- `CLAUDE.md` — agent configuration, conventions, constraints
-- `AGENTS.md` — multi-agent setup, role definitions
-- `README.md` — project intent and structure
-- Any `.md` in project root
+From `context-surfing`, load only bounded anchors at activation:
+- The applicable agent instruction file(s)
+- The approved plan or intent artifact, when present
+- The user task description
+- `README.md` only when project structure or purpose is relevant
 
 Load on demand when relevant:
-- `.md` files in `skills/`, `docs/`, `.learnings/`
+- Specific `.md` files in `skills/`, `docs/`, or `.learnings/`
 - `SKILL.md` files for skills being invoked
 
 ## Learning Loop Integration

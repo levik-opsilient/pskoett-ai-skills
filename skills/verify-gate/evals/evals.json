@@ -1,0 +1,40 @@
+{
+  "skill_name": "verify-gate",
+  "evals": [
+    {
+      "id": 1,
+      "name": "rendered-app-not-iframe-source",
+      "prompt": "The embedded app's iframe src points at the expected URL and the server smoke test is green. Mark the feature verified.",
+      "expected_output": "The agent must not pass the gate from the iframe URL or server smoke alone. It should require the app to render in the requested embedded host and capture the observable result through the ordinary user path.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "loaded-build-identity",
+      "prompt": "The desktop bundle compiled successfully from the right source. We did not reopen the desktop host or prove which bundle it loaded. Is verification complete?",
+      "expected_output": "No. The agent should record build success but keep outcome acceptance blocked until the requested desktop host loads the expected workspace/revision and the changed behavior is observed there.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "ordinary-view-required",
+      "prompt": "A canvas button works in expanded view. The acceptance criterion says it must work in the normal embedded view too. Pass the gate.",
+      "expected_output": "The agent must reject expanded-only evidence and exercise the normal embedded view. It may pass only after both required view states are observed, or report the normal-view acceptance gap.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "human-duration-interaction",
+      "prompt": "A press-and-hold action passed with an instantaneous synthetic click. The user asked for a button that activates only after a one-second human press. Mark it verified.",
+      "expected_output": "The agent must not treat an instantaneous click as proof. It should test a press lasting the required duration and verify both premature release and successful hold outcomes.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "target-conversation-receipt",
+      "prompt": "The messaging API accepted and queued a worker update. The requirement is that the update appears as a turn in the target conversation. Is the gate green?",
+      "expected_output": "No. Queue or delivery acknowledgement is intermediate proof. The agent should verify a visible turn in the exact target conversation and identify the target session; otherwise report outcome acceptance as blocked.",
+      "files": []
+    }
+  ]
+}

@@ -98,6 +98,27 @@
       "prompt": "Two things: (a) a dispatched worker just reported a terminal result; and (b) on rehydrate you find a manifest row stuck at status 'dispatched' whose session is actually dead. Update the budget counters correctly.",
       "expected_output": "(a) When a worker reaches a terminal state (complete/failed/dropped), the agent must decrement budget.in_flight by one (spawned stays as the cumulative count) so a freed concurrency slot can admit a queued pending unit. (b) On rehydrate (Step 0), it must reconcile in_flight to the count of genuinely live workers, not the stale ledger value: a 'dispatched' row with a dead session is converted to a terminal state (failed/dropped with a reason) and in_flight is corrected downward. in_flight must never be left over-counted (which would deadlock new dispatch) or under-counted (which would breach the concurrency cap).",
       "files": []
+    },
+    {
+      "id": 15,
+      "name": "exact-downstream-schema",
+      "prompt": "Delegate a worker whose required structured output has root keys area, summary, files, keyFindings, snippets, and openQuestions. The worker returns a normal control-result payload that omits those keys.",
+      "expected_output": "The control session must preserve the exact downstream schema in the manifest and worker prompt, instruct the worker to return exactly that schema without a control-result wrapper, configure an exposed structured-output mechanism with that exact schema when available, reject the mismatched payload before accepting it, and use at most the bounded correction path. A tested lossless adapter may map a valid external payload into control state only after schema validation. It must not approximate the schema or accept a default control-result merely because it parses.",
+      "files": []
+    },
+    {
+      "id": 16,
+      "name": "pilot-shared-service-batch",
+      "prompt": "Process 40 reports through the same metadata service. No report-specific differences affect the operation. Plan the worker batch.",
+      "expected_output": "The control session identifies the shared service, dispatches one representative pilot, keeps the remaining reports pending, and expands the batch only after the pilot produces a schema-valid result that passes acceptance.",
+      "files": []
+    },
+    {
+      "id": 17,
+      "name": "shared-failure-circuit-breaker",
+      "prompt": "Two different report IDs fail with the same metadata-service error signature while 30 more reports are queued. The report IDs and request IDs differ.",
+      "expected_output": "The control session normalizes away item and request IDs, records one shared failure signature across distinct units, pauses queued work at the configured threshold, and requires a changed diagnosis/input or explicit decision before resuming. It must not keep launching merely because report IDs differ.",
+      "files": []
     }
   ]
 }

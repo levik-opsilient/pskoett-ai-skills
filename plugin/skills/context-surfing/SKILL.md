@@ -1,6 +1,6 @@
 ---
 name: context-surfing
-description: Monitors context window health throughout a session and rides peak context quality for maximum output fidelity. Activates automatically after plan-interview and intent-framed-agent. Stays active through execution and hands off cleanly to simplify-and-harden and self-improvement when the wave completes naturally or exits via handoff. Use this skill whenever a multi-step agent task is underway and session continuity or context drift is a concern. Especially important for long-running tasks, complex refactors, or any work where degraded context would silently corrupt the output. Trigger even if the user doesn't say "context surfing" — if an agent task is running across multiple steps with intent and a plan already established, this skill is live.
+description: Monitors context window health during large, long-running, multi-session, or explicitly context-sensitive work. Uses bounded external anchors, one cold-context review when self-recovery is uncertain, and a clean handoff on real drift. Do not auto-activate merely because a medium task has an intent frame and plan.
 hooks:
   SessionStart:
   - hooks:
@@ -47,11 +47,15 @@ The skill's job: ride as long as the wave is good, exit before it closes out.
 [plan-interview] → [intent-framed-agent] → [context-surfing ACTIVE] → [verify-gate] → [simplify-and-harden] → [self-improvement]
 ```
 
-Context Surfing is the execution layer. It wraps all work between intent capture and post-completion review. Simplify-and-harden and self-improvement are the next steps in the pipeline — they run after context-surfing completes, not as conditions that end it.
+Context Surfing is an optional execution layer for work with meaningful context
+pressure. It wraps execution between intent capture and post-completion review
+only when the task is Large, Long-running, multi-session, explicitly requests
+context monitoring, or shows concrete drift risk.
 
 ### Relationship with intent-framed-agent
 
-Both skills are live during execution. They monitor different failure modes:
+When context-surfing is activated, both skills are live during execution. They
+monitor different failure modes:
 
 - **intent-framed-agent** monitors *scope* drift — am I doing the right thing? It fires structured Intent Checks when work moves outside the stated outcome.
 - **context-surfing** monitors *context quality* drift — am I still capable of doing it well? It fires when the agent's own coherence degrades (hallucination, contradiction, hedging).
@@ -82,14 +86,18 @@ When in doubt, start light. Add skills if you notice drift or quality issues mid
 
 ## Activation
 
-This skill is live the moment the intent frame and plan are established. No explicit invocation needed.
+Activate this skill when the task is Large or Long-running, work spans
+sessions, the user explicitly requests context monitoring, or concrete behavior
+indicates drift risk. An intent frame plus a plan is not sufficient by itself;
+do not auto-activate for an ordinary Medium task.
 
-At activation, load whatever anchors are available:
+At activation, load the smallest useful anchor:
 
-1. The intent frame (from intent-framed-agent output) — if available
-2. The plan (from plan-interview output) — if available
-3. The current session state from the Entire CLI (if available)
-4. All project context files (see below)
+1. The user's current task and latest scope change
+2. The applicable agent instruction file(s)
+3. The approved intent frame and plan, when present
+4. A prior handoff, when resuming
+5. The current session state from Entire, when available
 
 If neither an intent frame nor a plan exists (standalone mode), use the user's original task description combined with project context files as the wave anchor. This is sufficient — the skill degrades gracefully, not catastrophically.
 
@@ -103,14 +111,25 @@ At activation, detect Entire:
 entire status 2>/dev/null
 ```
 
-- If it succeeds, Entire captures the session passively via hooks — every prompt, tool call, file modification, and checkpoint is recorded to the shadow branch. You don't need to call Entire directly; the harness handles it. Use `entire status` and `entire explain --session <id>` to read back session state when needed.
-- If unavailable or failing, continue without it. Use the intent frame and plan file as the wave anchor instead. Track progress via structured comments in your output rather than Entire CLI commands. Do not block execution and do not nag about installation.
+- If it succeeds and the active host adapter supports the relevant lifecycle
+  events, Entire captures those supported events passively via hooks. Do not
+  infer full transcript or checkpoint coverage from `entire status` alone.
+  Use `entire status` and `entire explain --session <id>` to inspect available
+  state and record unsupported host coverage explicitly.
+- If unavailable or failing, record the optional integration as unavailable
+  with the bounded reason, then continue without it. Use the intent frame and
+  plan file as the wave anchor instead. Do not turn optional telemetry failure
+  into a delegation or policy denial, and do not repeatedly retry or nag about
+  installation.
 
 The **wave anchor** is not held mentally. It is built from whatever external, persistent artifacts are available — every drift check reads from them directly, never from reconstructed memory.
 
 ### Handoffs become learning signals
 
-When context-surfing writes a handoff file on drift exit, that handoff is also captured in the Entire session transcript (via the `Stop` / `SessionEnd` hooks). At cadence, `learning-aggregator --deep` reads those transcripts and extracts:
+When context-surfing writes a handoff file on drift exit, a supported host
+adapter may also capture the related `Stop` / `SessionEnd` events in Entire.
+At cadence, `learning-aggregator --deep` reads only the transcript coverage
+that is actually available and extracts:
 
 - Which drift signals most commonly trigger handoffs → potential session design issues
 - How many sessions hit drift exit vs completed cleanly → session health baseline
@@ -119,8 +138,8 @@ When context-surfing writes a handoff file on drift exit, that handoff is also c
 Structured handoff files (`.context-surfing/handoff-<slug>-<timestamp>.md`) with predictable section headers make this parseable. You don't need to do anything special — just keep the handoff format consistent.
 
 - **Full pipeline:** intent frame + plan file + Entire CLI session state
-- **Partial pipeline:** whichever of intent frame or plan exists, plus project context files
-- **Standalone:** the user's original task description + project context files (CLAUDE.md, AGENTS.md, README.md, etc.)
+- **Partial pipeline:** whichever of intent frame or plan exists, plus the applicable instruction file
+- **Standalone:** the user's original task description + the applicable instruction file
 
 The anchor is weaker in standalone mode — fewer artifacts to cross-check against — but it is always present. A weak anchor is better than no anchor.
 
@@ -128,15 +147,19 @@ The anchor is weaker in standalone mode — fewer artifacts to cross-check again
 
 ## Project Context Files
 
-Before executing anything, scan the project for `.md` files that carry standing context. These are not documentation to skim — they are constraints, decisions, and architectural truth that must stay in the wave at all times.
+Before executing, identify the minimum standing context needed for the task.
+Do not scan or load every root Markdown file by default.
 
 ### Always load at activation
-- `CLAUDE.md` — agent configuration, conventions, constraints
-- `AGENTS.md` — multi-agent setup, role definitions
-- `README.md` — project intent and structure
-- Any `.md` in the project root
+- The applicable agent instruction file(s), such as `AGENTS.md`,
+  `CLAUDE.md`, or `.github/copilot-instructions.md`
+- The user's current task and latest scope change
+- The approved plan/intent artifacts, when present
+- The selected handoff file, when resuming
 
 ### Load on demand (when relevant to the current task)
+- `README.md` for project purpose or structure
+- A specific root Markdown file named by the active instructions or task
 - `.md` files in `skills/`, `docs/`, `.learnings/`, or similar directories
 - `SKILL.md` files for any skill being invoked alongside this one
 
@@ -156,9 +179,8 @@ Continuously monitor for these signals. Strong signals trigger an immediate exit
 
 ### Strong signals (exit immediately)
 - The agent contradicts a decision it already made and committed to
-- A detail appears in the output that was never in the original context (hallucination)
+- The agent commits to a detail contradicted by the anchor and cannot reconcile it
 - The agent re-opens a scope question that was explicitly resolved in the plan
-- Output starts re-explaining the task rather than executing it
 
 ### Weak signals (trigger recovery)
 - Responses are getting longer without getting more useful
@@ -166,6 +188,8 @@ Continuously monitor for these signals. Strong signals trigger an immediate exit
 - The agent switches approaches mid-task without explicit user direction
 - References to the original intent become vague or paraphrased instead of precise
 - The agent asks a clarifying question it should already know the answer to
+- Output starts re-explaining the task rather than executing it
+- A new unsupported detail appears and needs verification against the anchor
 
 ### Not drift
 - Normal iteration and refinement within scope
@@ -216,10 +240,9 @@ Compare what you're currently doing against what these artifacts say you should 
 
 #### Re-anchor limits
 
-There is no hard cap on recovery attempts. Keep re-anchoring as long as each attempt genuinely resolves the uncertainty and the user confirms alignment. However:
-
-- If you find yourself re-anchoring on consecutive steps, that is itself a weak signal — the wave is flattening and a natural exit may be close.
-- Strong signals always bypass recovery and trigger an immediate exit. Recovery is only for the shoulder, never for the close-out.
+Allow at most one local re-anchor and one cold-context check for the same drift
+episode. If they do not resolve it, escalate or exit. Strong signals bypass
+recovery and trigger an immediate exit.
 
 ---
 
@@ -296,7 +319,7 @@ Structure:
 
 Briefly and clearly:
 
-> "Context wave is done. I've saved the session state to `.context-surfing/[filename]`. The next session should load that file, run plan-interview to replan from [re-entry point], and catch the next wave. Here's what triggered the exit: [one sentence on drift signal]."
+> "Context wave is done. I've saved the session state to `.context-surfing/[filename]`. The next session should load that file and resume from [re-entry point]. Replan only if the handoff records unresolved requirements or a material scope change. Here's what triggered the exit: [one sentence on drift signal]."
 
 Do not over-explain. The handoff file has the details.
 
@@ -306,9 +329,11 @@ Do not over-explain. The handoff file has the details.
 
 The next session should:
 1. Read the handoff file completely before doing anything else
-2. If the original session used the full pipeline, run plan-interview using the handoff as input context and re-establish the intent frame via intent-framed-agent
-3. If the original session was standalone, use the handoff's original task description and drift notes to re-ground
-4. Pick up context-surfing again from the recommended re-entry point
+2. Reuse an approved plan and intent frame when the handoff shows they remain complete and unchanged
+3. Run `plan-interview` only when the handoff records unresolved requirements, a material scope change, or an invalidated plan
+4. In standalone mode, re-ground from the task description and drift notes
+5. Resume from the recommended re-entry point
+6. Mark the handoff consumed only after re-entry succeeds
 
 This is not failure. This is the system working correctly. Clean exits produce better total output than zombie sessions that limp to the finish line.
 
@@ -342,7 +367,8 @@ No handoff file needed for clean completions — just the outputs and a one-line
 ### Pipeline position
 1. `plan-interview` (optional, for requirement shaping)
 2. `intent-framed-agent` (execution contract + scope drift monitoring)
-3. `context-surfing` (context quality monitoring — runs concurrently with intent-framed-agent during execution)
+3. `context-surfing` (optional context-quality monitoring for Large,
+   Long-running, or explicitly context-sensitive execution)
 4. `verify-gate` (machine verification: compile + test + lint)
 5. `simplify-and-harden` (post-completion quality/security pass)
 6. `self-improvement` (capture recurring patterns and promote durable rules)
@@ -372,7 +398,11 @@ Add to `.claude/settings.json`. Point the command at where the skill is installe
 
 Codex CLI supports the same `SessionStart` event via `<repo>/.codex/hooks.json` (experimental, behind `codex_hooks = true` in `config.toml`); plain stdout from the script is added as developer context there too.
 
-This checks for unread handoff files in `.context-surfing/` on every prompt. If found, it reminds the agent to read the handoff before starting new work (~100 tokens overhead, skips silently when no handoff exists).
+This checks for pending handoff files in `.context-surfing/` at session start.
+After a successful re-entry, create the adjacent
+`handoff-<slug>-<timestamp>.md.consumed` marker so future sessions do not repeat
+the same reminder. The marker is session state inside the already ignored
+`.context-surfing/` directory.
 
 ### Copilot / Chat Fallback
 

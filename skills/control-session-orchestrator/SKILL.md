@@ -115,6 +115,15 @@ unit is never dispatched twice — this is the dedup ledger).
   "success_criteria": ["every tool present in server, HTTP, SDK, docs or flagged"],
   "budget": { "max_concurrent_workers": 5, "max_total_workers": 25, "spawned": 0, "in_flight": 0 },
   "convergence": { "rule": "single-pass", "k_empty": 2, "empty_streak": 0, "target": null, "current": 0 },
+  "worker_contract": { "schema_name": "control-result/v1", "required_output_schema": null },
+  "batch_guard": {
+    "service_key": null,
+    "pilot_unit_key": null,
+    "pilot_status": "not-required",
+    "pause_after_same_signature": 2,
+    "paused": false,
+    "failure_signatures": {}
+  },
   "workers": [
     {
       "unit_key": "surface/http",
@@ -151,6 +160,11 @@ Rules:
 - `convergence.rule` is one of `single-pass | loop-until-dry | loop-until-budget |
   accumulate-to-target`. `k_empty`/`empty_streak` are used only by `loop-until-dry`; `target`/`current`
   only by `accumulate-to-target` (`target` = the count or coverage goal, `current` = progress so far).
+- `worker_contract.required_output_schema` stores the caller's exact structured-output schema when
+  one exists. The default contract is `control-result/v1`; never paraphrase or silently replace an
+  external schema.
+- `batch_guard` records the pilot and normalized failure signatures for a homogeneous
+  external-service batch. `service_key` identifies the shared dependency, not an individual item.
 - dropped/failed units MUST carry a reason in `open_followups`.
 
 This manifest is what a fresh control session rehydrates from (Step 0).
@@ -179,6 +193,8 @@ Before spawning anything, capture (and write into the manifest):
 - Success criteria and verification gates
 - Merge/integration expectations
 - Any "do not touch" constraints
+- The exact worker output schema, when the caller or execution surface requires one
+- Any shared external service used by a multi-item batch
 
 Also set explicit limits up front (manifest `budget` and `convergence`):
 
@@ -237,7 +253,7 @@ Each worker prompt should be self-contained. Include:
 - What the worker may and may not change
 - Verification commands or acceptance criteria
 - Whether it may create commits, PRs, or only report back
-- The required result block
+- The required output contract
 
 Worker prompt template:
 
@@ -250,29 +266,54 @@ Scope: <files/subsystems/issue/PR>
 Do not touch: <boundaries>
 Approach: <expected plan or constraints>
 Verification: <commands/checks/evidence>
+Required output schema: <exact JSON schema, or "control-result/v1">
+Submission format: <default control-result block, or exact external-schema instruction>
 
 You MAY use your own subagents for local research, implementation, and review, but you remain
 accountable for this scope and the final report. Do NOT create or steer further persistent project
 sessions — if the work needs another full workstream, say so in next_step.
 
-End your report with a fenced ```json control-result block (see the contract). Populate every field;
-record subagents you used in subagents_used. The control session reads only that block.
+Follow the submission format exactly and validate the payload against the required output schema
+before submission. The control session reads only that payload.
 ```
+
+For `control-result/v1`, set the submission format to a fenced `json control-result` block populated
+with every field, including `subagents_used`. When a caller requires a different schema, store and
+include that schema verbatim, including every required root key and type, and tell the worker to
+return exactly that schema without a `control-result` wrapper. If the execution surface exposes
+structured-output validation, configure it with the same schema; do not invent an argument for
+surfaces that do not. Define and test a lossless adapter from the external schema into the control
+manifest before dispatch. Without one, return `needs-decision` rather than approximating either
+contract.
 
 When using Codex app controls, prefer to rename and pin important worker/control threads so the
 session graph stays legible. When using GitHub Copilot app controls, use the corresponding session or
 workspace labels if exposed.
 
+#### Pilot shared-service batches
+
+Before dispatching a large homogeneous batch through one external service:
+
+1. Set `batch_guard.service_key` and choose one representative `pilot_unit_key`.
+2. Dispatch only the pilot; keep the remaining units `pending`.
+3. Release the batch only after the pilot returns a schema-valid result and passes its acceptance
+   checks.
+
+Different item IDs do not make failures independent. If the same normalized failure signature
+occurs on two distinct units, set `batch_guard.paused: true`, stop queued launches sharing that
+service, and report the blocker. Resume only after the diagnosis or input materially changes, or
+after an explicit decision accepts the risk.
+
 ### 5. Track state centrally
 
 The control-state manifest is the single source of truth — update it every turn, not the
-conversation. From each worker's result block, set the unit's `status`, `evidence_ref` (= the block's
-`report_ref`), `verification` (= the block's `verification.result`), and — when `status` is `blocked`
-or `needs-decision` — `blocker` (the block's blocking reason; otherwise `null`). The control session
-records the remaining fields itself: stamp `last_update` from its own clock, and set `branch_or_pr`
-from the worker's session/PR metadata when known (workers don't self-report it in the block). Keep the
-control session's context focused on summaries and decisions, not full transcripts; the full report
-lives at `report_ref`.
+conversation. From each accepted worker result (after applying the tested adapter when required),
+set the unit's `status`, `evidence_ref`, `verification`, and — when `status` is `blocked` or
+`needs-decision` — `blocker` (otherwise `null`). For `control-result/v1`, these map from
+`report_ref`, `verification.result`, and the blocking reason. The control session records the
+remaining fields itself: stamp `last_update` from its own clock, and set `branch_or_pr` from the
+worker's session/PR metadata when known. Keep the control session's context focused on summaries and
+decisions, not full transcripts; the full report lives at `evidence_ref`.
 
 Track at least, per unit: `unit_key`, `worker_id`, `session_ref`, scope, status, branch/PR, last
 update, blocker, and verification state — matching the row schema above. Canvas nodes or a SQL/todo
@@ -282,10 +323,14 @@ table are good backends for the manifest when the app exposes them.
 
 When a worker reports, first run the **result-gate**:
 
-- Parse the `control-result` block. If a required field is missing or malformed, or the status is
-  inconsistent with evidence (e.g. `status: complete` with `verification.result != pass`), do NOT
-  accept it — send exactly one standardized re-prompt asking only for the corrected block. Cap at 2
-  retries, then escalate to the user.
+- Parse the payload required by `worker_contract`: the fenced `control-result` block for the default
+  contract, or the exact external payload otherwise. If a required field is missing or malformed,
+  do NOT accept it — send exactly one standardized re-prompt asking only for the corrected payload.
+  Cap at 2 retries, then escalate to the user.
+- For an external schema, validate every required root key, type, and enum before applying the tested
+  adapter. A valid default control-result that violates the caller's exact schema is still invalid.
+- After validation and any adapter, reject a completion whose status conflicts with its evidence
+  (for example, `status: complete` with `verification.result != pass`).
 - Accept completed work only when the block validates AND meets the success criteria.
 
 Then route:
@@ -294,6 +339,11 @@ Then route:
 - Avoid duplicating a worker's investigation unless its result is incomplete or suspect (check the
   unit ledger first).
 - If two or more workers conflict, pause integration and resolve ownership before more edits happen.
+- Normalize repeated external-service failures by removing volatile item IDs, request IDs, and
+  timestamps. Record the signature and affected unit keys in `batch_guard.failure_signatures`; at
+  the configured threshold, pause queued units sharing the service. A transient retry may use
+  bounded backoff, but never fan out simultaneous retries against a service already showing the
+  same failure.
 
 ### 7. Iterate waves to convergence
 
@@ -343,6 +393,7 @@ For PR-bound work, keep the control session responsible for final PR readiness a
   workstream reports that need to control.
 - Enforce the concurrency and total-fan-out caps; never exceed them silently. Dropped, skipped, or
   failed units MUST be recorded with a reason (no silent truncation).
+- Pilot large homogeneous external-service batches and pause repeated shared failure signatures.
 - If using an in-place checkout, be extra careful: other user-owned changes may already exist.
 - If the plan changes materially, update the user and the workers before continuing.
 

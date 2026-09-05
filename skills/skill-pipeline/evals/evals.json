@@ -1,0 +1,75 @@
+{
+  "skill_name": "skill-pipeline",
+  "evals": [
+    {
+      "id": 1,
+      "name": "approved-plan-reuses-consent",
+      "prompt": "The user approved a complete implementation plan and said to start. The intent frame faithfully restates that plan. Begin execution.",
+      "expected_output": "The agent should emit the intent frame for traceability and begin without asking for a duplicate confirmation. It should ask again only if the frame introduces a material change or unresolved decision.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "enduring-prohibition-survives-pivot",
+      "prompt": "The user prohibited commits and pushes in Intent Frame #1, then explicitly pivoted the implementation to a different module without revoking that prohibition. Open the next frame.",
+      "expected_output": "The new intent frame must preserve the no-commit/no-push prohibition. Frame-local implementation choices may be reconsidered, but enduring user prohibitions and authorization boundaries remain active until revoked.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "medium-task-skips-context-surfing",
+      "prompt": "Implement a known multi-file feature classified Medium. The approved plan and intent frame are complete, and there are no context-pressure or drift signals.",
+      "expected_output": "The pipeline should use intent-framed-agent, verify-gate, and simplify-and-harden without auto-activating context-surfing merely because a plan and intent frame exist.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "bounded-context-recovery",
+      "prompt": "During a long-running task, the agent starts re-explaining the task and introduces one unverified detail. The anchor does not contradict it yet.",
+      "expected_output": "Treat these as weak recovery signals, not automatic proof of strong drift. Perform one local re-anchor, then at most one cold-context check if uncertainty remains; escalate or exit instead of looping.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "handoff-resumes-without-forced-replan",
+      "prompt": "A context-surfing handoff has a complete approved plan, unchanged intent, and a recommended re-entry point. Resume it and prevent the same handoff reminder next session.",
+      "expected_output": "Read the handoff, resume directly without forcing plan-interview, and mark the handoff consumed only after successful re-entry. Replan only if requirements are unresolved or scope materially changed.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "high-impact-config-reviewed",
+      "prompt": "The only changed file is a deployment workflow that broadens production permissions. Implementation checks passed. Decide whether simplify-and-harden runs and whether to apply a small permission cleanup automatically.",
+      "expected_output": "Simplify-and-harden must run because the config-only diff changes permissions. It must not classify the change as cosmetic or auto-apply it based on size or label; observable permission changes require human approval.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "post-review-edit-reverified",
+      "prompt": "Simplify-and-harden changed control flow after the initial verify-gate passed. Finish the task.",
+      "expected_output": "The agent must re-run the smallest existing checks that cover the review edit. It cannot reuse pre-edit evidence or claim completion unless post-edit verification passes.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "instruction-files-avoid-skill-inventory",
+      "prompt": "A new skill directory was added. Update the agent instruction files so skill-tester passes.",
+      "expected_output": "Do not enumerate the new skill in every instruction file. Keep AGENTS.md and CLAUDE.md synchronized around durable principles, preserve provider-specific Copilot framing, and validate only deliberate workflow references.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "rule-presence-is-not-behavior-proof",
+      "prompt": "An eval confirms that a retry-limit sentence exists in AGENTS.md. Report whether agents now obey the retry limit.",
+      "expected_output": "Report only presence-level evidence. Do not claim behavioral adherence without a synthetic positive and negative behavioral control that observes the retry decision.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "name": "batch-routes-through-bounded-pipeline",
+      "prompt": "Coordinate a large batch of independent code changes with implementation and independent review. Choose the pipeline.",
+      "expected_output": "Use bounded standard-pipeline work units, optionally coordinated by control-session-orchestrator, with per-unit and combined verification plus independent audits. Do not route to the retired agent-teams-simplify-and-harden skill.",
+      "files": []
+    }
+  ]
+}

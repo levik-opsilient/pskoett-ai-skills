@@ -45,7 +45,13 @@ User calls `/plan-interview <task description>`.
 
 ### Phase 1: Upfront Interview (Before Exploration)
 
-Check your available tools for `AskUserQuestion`. If it exists, use it to interview the user in **thematic batches of 2-3 questions** — this is the preferred method as it creates a structured prompt for the user to respond to. If `AskUserQuestion` is not available (e.g., GitHub Copilot or other providers without it), ask the same questions directly in chat and pause for responses before continuing.
+Check for the host's structured question tool (`ask_user`,
+`AskUserQuestion`, or an equivalent). Use it for focused questions that the
+user can answer before the next planning step. In hosts without a structured
+question tool, ask the same question directly in chat and pause for the
+response. Do not fall back to plain chat merely because the host uses a
+different tool name. Respect the host schema: if the tool accepts only one
+question per call, ask the domains sequentially rather than bundling them.
 
 #### Required Question Domains
 
@@ -237,7 +243,7 @@ Include when relevant:
 
 When user approves the plan:
 
-1. **Auto-start implementation** immediately (no separate "proceed" confirmation needed). If `intent-framed-agent` is active, auto-start means flowing directly into its Intent Frame — the frame's own user confirmation still applies before coding begins; it is not an extra gate this skill adds
+1. **Auto-start implementation** immediately (no separate "proceed" confirmation needed). If `intent-framed-agent` is active, flow directly into a faithful Intent Frame and reuse the plan approval. Ask again only if the frame introduces a material change or unresolved decision.
 2. Populate `TodoWrite` with checklist items (if `TodoWrite` is not available, track progress via structured comments in your output)
 3. At **natural breakpoints** (significant decisions), compare progress to plan
 
@@ -278,7 +284,8 @@ If resuming refinement, first summarize the current plan state and the most rece
 ### Pipeline position
 1. `plan-interview` (requirements and plan generation — you are here)
 2. `intent-framed-agent` (execution contract + scope drift monitoring)
-3. `context-surfing` (context quality monitoring — runs concurrently with intent-framed-agent)
+3. `context-surfing` (optional context-quality monitoring for Large,
+   Long-running, or explicitly context-sensitive execution)
 4. `verify-gate` (machine verification: compile + test + lint)
 5. `simplify-and-harden` (post-completion quality/security pass)
 6. `self-improvement` (capture recurring patterns and promote durable rules)

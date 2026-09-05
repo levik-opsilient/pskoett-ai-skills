@@ -53,35 +53,39 @@ concurrency:
 strict: true
 ---
 
-1. Read all files in `.learnings/` directory: `LEARNINGS.md`, `ERRORS.md`, `FEATURE_REQUESTS.md`. If the directory does not exist or is empty, report zero findings and exit.
+1. Read all files in `.learnings/` directory: `LEARNINGS.md`, `ERRORS.md`, `FEATURE_REQUESTS.md`, `HEALS.md`. If the directory does not exist or is empty, report zero findings and exit.
 
-2. Check cache-memory at `/tmp/gh-aw/cache-memory/learning-aggregator-state.json` for previous aggregation state. If found, load prior pattern groups and recurrence counts as a baseline. Only re-process entries with `Last-Seen` newer than the cached scan date.
+2. Check cache-memory at `/tmp/gh-aw/cache-memory/learning-aggregator-state.json` for previous aggregation state. Load it only when `aggregation_schema` is exactly `provenance-v1` and it includes canonical occurrence fingerprints, stable task lineage, and terminal-event boundaries. Otherwise ignore the old aggregate counts and rebuild from all entries. With a valid cache, only re-process entries with `Last-Seen` newer than the cached scan date.
 
-3. Parse each entry's structured metadata fields: `Pattern-Key`, `Recurrence-Count`, `First-Seen`, `Last-Seen`, `Priority`, `Status`, `Area`, `Related Files`, `Source`, `Tags`.
+3. Parse each entry's structured metadata fields: `Pattern-Key`, `Recurrence-Count`, `First-Seen`, `Last-Seen`, `Priority`, `Status`, `Area`, `Related Files`, `Source`, `Tags`, plus optional provenance fields `Task-ID`, `Session-ID`, `Occurrence-ID`, `Source-Ref`, and `Copied-From`.
 
-4. Group entries by exact `Pattern-Key` match. Do not attempt fuzzy grouping — false positives are worse than ungrouped entries in CI.
+4. Collapse copied entries and mirrored trace/log evidence into canonical occurrences before grouping. Prefer `Occurrence-ID`; otherwise use entry ID, task/session/source lineage, and normalized content. Different paths, checkpoints, forks, forwards, or cloud/local copies are not independent evidence.
 
-5. For each group: sum `Recurrence-Count` across entries, count distinct task references, compute the time window between earliest `First-Seen` and latest `Last-Seen`, collect all evidence summaries.
+5. Group canonical occurrences by exact `Pattern-Key` match. Do not attempt fuzzy grouping — false positives are worse than ungrouped entries in CI.
 
-6. Identify promotion-ready patterns: `Recurrence-Count >= 3` AND `distinct tasks >= 2` AND within a `30-day window`.
+6. For each group: count deduplicated recurrences, count distinct tasks from stable provenance, compute the time window between earliest `First-Seen` and latest `Last-Seen`, and collect all evidence summaries. Legacy unknown-lineage evidence counts as at most one distinct task.
 
-7. Identify approaching patterns: `Recurrence-Count >= 2` OR `Priority: high/critical` with any recurrence.
+7. Exclude terminal-only groups (`promoted`, `promoted_to_skill`, `resolved`, `wont_fix`) from promotion candidates. Reopen only when newer active evidence exists after the latest terminal event.
 
-8. Flag entries without `Pattern-Key` as ungrouped with a recommendation to assign one.
+8. Identify promotion-ready patterns: deduplicated recurrence `>= 3` AND provenance-proven distinct tasks `>= 2` AND within a `30-day window`.
 
-9. Flag entries with `Last-Seen` older than 90 days as stale with a recommendation to dismiss.
+9. Identify approaching patterns: deduplicated recurrence `>= 2` OR `Priority: high/critical` with any active recurrence.
 
-10. Classify each promotion-ready pattern's gap type: knowledge gap (agent didn't know), tool gap (agent improvised), skill gap (same behavior fails), ambiguity (conflicting interpretations), reasoning failure (agent had knowledge but reasoned wrong).
+10. Flag entries without `Pattern-Key` as ungrouped with a recommendation to assign one.
 
-11. Write updated aggregation state to cache-memory at `/tmp/gh-aw/cache-memory/learning-aggregator-state.json` for the next run.
+11. Flag active entries with `Last-Seen` older than 90 days as stale with a recommendation to dismiss, and report terminal-only groups as historical.
 
-12. Emit the full gap report as structured YAML under key `learning_aggregator_ci` following the output schema in the skill definition.
+12. Classify each promotion-ready pattern's gap type: knowledge gap (agent didn't know), tool gap (agent improvised), skill gap (same behavior fails), ambiguity (conflicting interpretations), reasoning failure (agent had knowledge but reasoned wrong).
 
-13. Upload the gap report YAML as a workflow artifact named `gap-report`.
+13. Write updated aggregation state to cache-memory at `/tmp/gh-aw/cache-memory/learning-aggregator-state.json` for the next run with `aggregation_schema: provenance-v1`, canonical occurrence fingerprints, stable task lineage, terminal-event boundaries, and the scan date.
 
-14. Post a human-readable summary as a comment. Format: promotion-ready patterns first (with evidence and recommended action), then approaching patterns, then ungrouped entries, then stale entries.
+14. Emit the full gap report as structured YAML under key `learning_aggregator_ci` following the output schema in the skill definition.
 
-15. If any promotion-ready patterns have `eval_candidate: true`, trigger `eval-creator-ci` via call-workflow to create eval cases from the newly promoted patterns.
+15. Upload the gap report YAML as a workflow artifact named `gap-report`.
 
-16. Do not modify any repository files. This workflow is read-only.
+16. Post a human-readable summary as a comment. Format: promotion-ready patterns first (with evidence and recommended action), then approaching patterns, then ungrouped entries, then stale and historical entries.
+
+17. If any promotion-ready patterns have `eval_candidate: true`, trigger `eval-creator-ci` via call-workflow to create eval cases from the newly promoted patterns.
+
+18. Do not modify any repository files. This workflow is read-only.
 ```

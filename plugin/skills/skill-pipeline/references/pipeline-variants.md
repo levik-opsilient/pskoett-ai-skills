@@ -6,7 +6,7 @@ Detailed walkthroughs of each pipeline variant. The orchestrator in SKILL.md sel
 
 For single-feature depth work. Not all stages activate for every task class — see the activation table in SKILL.md for which skills apply at each depth.
 
-- **Medium:** `intent-framed-agent` + `simplify-and-harden` (no planning, no context-surfing)
+- **Medium:** `intent-framed-agent` + `verify-gate` + `simplify-and-harden` (no planning, no context-surfing)
 - **Large:** Full pipeline including `plan-interview` (recommended) and `context-surfing`
 - **Long-running:** Full pipeline with `context-surfing` as the critical skill
 
@@ -22,81 +22,81 @@ Full pipeline (Large/Long-running):
 
 2. **Plan (optional, recommended for Large)** — User invokes `/plan-interview`. Structured interview across 4 domains (technical constraints, scope boundaries, risk tolerance, success criteria). Produces `docs/plans/plan-NNN-<slug>.md` with iterative refinement.
 
-3. **Intent Frame** — `intent-framed-agent` activates at the planning-to-execution transition. Emits Intent Frame with outcome, approach, constraints, success criteria, complexity. User confirms before coding begins.
+3. **Intent Frame** — `intent-framed-agent` activates at the planning-to-execution transition. It emits an Intent Frame with outcome, approach, constraints, success criteria, and complexity. An approved plan authorizes a faithful frame without a duplicate confirmation; ask only if the frame introduces a material change or unresolved assumption.
 
-4. **Execute with monitoring** — Implementation proceeds. Two concurrent monitors:
+4. **Execute with monitoring** — Implementation proceeds. Intent monitoring is
+   active; context monitoring joins for Large, Long-running, or explicitly
+   context-sensitive work:
    - `intent-framed-agent` monitors **scope** (are we doing the right thing?)
    - `context-surfing` monitors **context quality** (are we still capable of doing it well?)
    - If both fire simultaneously, `context-surfing` exit takes precedence.
 
 5. **Heal on failure (inner-loop recovery)** — Any time a command, test, build, lint, missing helper, environment drift, or external service issue blocks progress, route into `self-healing`. The loop: diagnose root cause, write/apply the patch (artifacts under `.learnings/heals/<HEAL-ID>/` only if files are generated), verify by re-running the failing operation, file the verified `HEAL-` entry to `.learnings/HEALS.md`. Most heals are recurrences — search `HEALS.md` by `Pattern-Key` first. At Recurrence ≥ 3 across distinct tasks, append a `Handoff` block to flag the entry for promotion via self-improvement.
 
-6. **Review** — On task completion, `simplify-and-harden` runs three passes:
+6. **Review** — On task completion, `simplify-and-harden` runs four phases:
    - Simplify (clarity, dead code, naming, control flow)
    - Harden (validation, injection vectors, auth, secrets)
    - Document (max 5 comments on non-obvious decisions)
-   - Cosmetic fixes auto-apply; refactors require human approval.
+   - Re-verify (rerun applicable checks after review edits)
+   - Only provably behavior-preserving fixes auto-apply; observable or uncertain
+     behavior, policy, permission, deployment, and security changes require
+     human approval.
 
 7. **Learn** — `self-improvement` ingests `learning_loop.candidates` from S&H plus `Handoff` blocks from recurring heals. Logs entries with `pattern_key`. Promotes recurring patterns (>= 3 occurrences, >= 2 tasks, 30 days) to project memory.
 
 ### Wave Anchor Composition
 
 - **Full pipeline:** intent frame + plan file + Entire CLI session state (if available)
-- **Partial pipeline:** whichever of intent frame or plan exists, plus project context files
-- **Standalone:** user task description + project context files
+- **Partial pipeline:** whichever of intent frame or plan exists, plus the applicable instruction file
+- **Standalone:** user task description + the applicable instruction file
 
 ### Session Resume
 
 If a prior session produced a handoff file (`.context-surfing/handoff-[slug]-[timestamp].md`):
 1. Read handoff file completely before doing anything else
-2. If original session used full pipeline: re-establish plan and intent frame from handoff
-3. If standalone: use handoff's task description and drift notes to re-ground
+2. If original session used full pipeline: reuse its approved plan and re-establish the intent frame from the handoff unless material decisions remain
+3. If standalone: use the handoff's task description and drift notes to re-ground directly
 4. Pick up context-surfing from recommended re-entry point
+5. Mark the handoff consumed only after re-entry succeeds
 
 ---
 
-## Team-Based Pipeline
+## Orchestrated Batch Pipeline
 
 For breadth work (Batch tasks: multiple features, issue triage, batch hardening).
 
 ```
-[plan-interview] → [agent-teams-simplify-and-harden] → [self-improvement]
+[plan-interview] → [bounded standard-pipeline work units] → [independent audits] → [self-improvement]
 ```
 
 ### Step-by-step
 
-1. **Classify** — `skill-pipeline` identifies batch work and routes to team-based variant.
+1. **Classify** — `skill-pipeline` identifies batch work and defines independently verifiable units.
 
-2. **Plan (optional)** — If a plan file exists, `agent-teams` extracts tasks from it. If no plan, the team lead runs a brief inline planning phase.
+2. **Plan (optional)** — If a plan exists, derive bounded units from it. Otherwise recommend `/plan-interview` when scope or dependencies are unclear.
 
-3. **Team Lead Intent Frame** — Team lead emits Intent Frame #1 before spawning the team.
+3. **Choose execution mode** — Use `control-session-orchestrator` when persistent multi-session coordination is available and useful. Otherwise process units sequentially.
 
-4. **Phase 1: Implement** — Parallel `general-purpose` agents work on assigned tasks. Wait for all to complete. Verify: clean compile + tests pass.
+4. **Implement** — Each unit follows the appropriate standard-pipeline depth and preserves umbrella constraints. Do not let workers approve their own behavior-changing refactors.
 
-5. **Phase 2: Audit** — Parallel `Explore` (read-only) agents run three audit dimensions:
+5. **Verify** — Run `verify-gate` for each completed unit and again on the combined result.
+
+6. **Audit** — Independent read-only agents review the combined result across three dimensions:
    - `simplify-auditor`: dead code, naming, control flow, over-abstraction
    - `harden-auditor`: validation, injection vectors, auth, secrets, data exposure
    - `spec-auditor`: completeness versus plan/spec
-   - All use read-only access to prevent silent fixes.
+   - Auditors report findings; implementation workers do not self-approve them.
 
-6. **Process Findings** — Categorize by severity:
-   - Critical/High → create fix task
-   - Medium → include in next round
-   - Low → fix inline or note in summary
-   - Refactor gate: "Would a senior engineer say this is clearly wrong, not just imperfect?"
+7. **Process findings** — Categorize by severity and impact. Behavior, API, policy, permission, or security changes require the same human consent as the standard pipeline. Apply approved fixes and rerun `verify-gate`.
 
-7. **Drift Check** — Team lead re-reads intent frame + plan between rounds. Are audit findings pulling scope off course?
+8. **Learn** — Emit normal `simplify-and-harden` learning candidates for `self-improvement`.
 
-8. **Loop** — Up to 3 audit rounds. Exit when:
-   - Clean audit (zero findings), OR
-   - Low-only round (fix inline, skip re-audit), OR
-   - Loop cap reached (3 rounds; resolve critical/high, log others)
+### Batch invariants
 
-9. **Learn** — Emit learning loop candidates for `self-improvement`.
-
-### Budget Guidance
-- Track cumulative diff growth
-- If > 30% above original implementation diff: skip medium/low simplify findings, focus on harden patches and spec gaps
+- Preserve user and project constraints across every work unit.
+- Require observable acceptance evidence for each unit and for the integrated result.
+- Pause dispatch after deterministic shared-service failures; do not fan out identical failing work.
+- Parallelism is optional. Verification, consent, and independent review are not.
 
 ---
 
@@ -131,11 +131,12 @@ For automated pull request review in GitHub Actions or similar CI environments.
 
 ## Hybrid Scenarios
 
-### Escalation: Standard to Teams
-A Medium task reveals itself as requiring batch work mid-execution. The orchestrator:
-1. Notes escalation signal (scope expanded, many files affected)
-2. Suggests switching to team-based variant
-3. Preserves existing intent frame and plan as input to `agent-teams`
+### Escalation: Standard to Orchestrated Batch
+A Medium task reveals itself as requiring several independent work units. The orchestrator:
+1. Notes the escalation signal (scope expanded, many files affected)
+2. Splits the remaining scope into bounded units with explicit dependencies
+3. Preserves the active intent frame, plan, and enduring constraints for every unit
+4. Uses `control-session-orchestrator` only when persistent coordination is available
 
 ### De-escalation: Large to Small
 Planning reveals the task is simpler than initially thought. The orchestrator:
@@ -143,4 +144,4 @@ Planning reveals the task is simpler than initially thought. The orchestrator:
 2. Proceed with lighter pipeline
 
 ### Mixed: Complex feature + small fixes
-Route the complex feature through standard pipeline first. After completion, batch the small fixes through teams or handle them as individual Small tasks with S&H only.
+Route the complex feature through the standard pipeline first. Process the fixes as bounded Small tasks, sequentially or through `control-session-orchestrator`, and verify the combined result.

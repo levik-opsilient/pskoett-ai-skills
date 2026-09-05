@@ -1,6 +1,6 @@
 ---
 name: simplify-and-harden
-description: 'Post-completion self-review for coding agents that runs simplify, harden, and micro-documentation passes on non-trivial code changes. Use when: a coding task is complete in a general agent session and you want a bounded quality and security sweep before signaling done. For CI pipeline execution, use simplify-and-harden-ci.'
+description: Post-completion self-review for coding agents that runs simplify, harden, re-verification, and micro-documentation passes on non-trivial code or high-impact configuration changes. Use when a task is complete in a general agent session and you want a bounded quality and security sweep before signaling done. For CI pipeline execution, use simplify-and-harden-ci.
 ---
 
 # Agent Skill: Simplify & Harden
@@ -66,14 +66,21 @@ The skill activates automatically when ALL of the following are true:
 
 **Non-trivial code change definition**
 
-Treat a diff as non-trivial when it satisfies BOTH of the following:
+Treat a diff as non-trivial when either condition is true:
 
-1. It touches at least one executable source file (for example: `*.ts`, `*.tsx`, `*.js`, `*.jsx`, `*.py`, `*.go`, `*.rs`, `*.java`, `*.cs`, `*.rb`, `*.php`, `*.swift`, `*.kt`, `*.scala`, `*.sh`).
-2. It includes either:
+1. It touches at least one executable source file (for example: `*.ts`,
+   `*.tsx`, `*.js`, `*.jsx`, `*.py`, `*.go`, `*.rs`, `*.java`, `*.cs`,
+   `*.rb`, `*.php`, `*.swift`, `*.kt`, `*.scala`, `*.sh`) and includes
+   either:
    - At least 10 changed non-comment, non-whitespace lines in executable source files, OR
    - At least one high-impact logic change (auth/authz checks, input validation, data access/query logic, external command execution, file path handling, network request handling, or concurrency control).
+2. It changes configuration, workflow, permissions, deployment, or security
+   policy in a way that can alter who may act, what executes, what is deployed,
+   or which protections apply.
 
-Treat the diff as non-trivial = false when it is docs-only, config-only, comments-only, formatting-only, generated artifacts only, or tests-only.
+Treat the diff as non-trivial = false when it is docs-only, low-impact
+config-only, comments-only, formatting-only, generated artifacts only, or
+tests-only.
 
 The skill does NOT activate when:
 
@@ -85,7 +92,7 @@ The skill does NOT activate when:
 
 ## Scope Constraints
 
-**Hard rule: Only touch code modified in this task.**
+**Hard rule: Only touch files modified in this task.**
 
 The agent MUST NOT:
 
@@ -106,7 +113,9 @@ The agent SHOULD flag out-of-scope concerns in the summary output rather than ac
 
 **Objective:** Reduce unnecessary complexity introduced during implementation.
 
-**Default posture: simplify, don't restructure.** The primary goal of this pass is lightweight cleanup -- removing noise, tightening naming, killing dead code. The agent should bias heavily toward cosmetic fixes that make the code cleaner without changing its structure. Refactoring is the exception, not the rule.
+**Default posture: simplify, don't restructure.** The primary goal of this pass
+is lightweight cleanup that is demonstrably behavior-preserving. Refactoring
+is the exception, not the rule.
 
 **Fresh-eyes start (mandatory):** Before making any edits in this pass, re-read all code added or modified in this task with "fresh eyes" and actively look for obvious bugs, errors, confusing logic, brittle assumptions, naming issues, and missed hardening opportunities.
 
@@ -132,7 +141,11 @@ The agent reviews its own work and asks:
 
 For each finding, the agent categorizes it as:
 
-- **Cosmetic fix** (dead code removal, unused imports, naming, control flow tightening, visibility reduction) -- applied automatically if within budget. This is the bread and butter of the skill.
+- **Behavior-preserving fix** (for example, removing a provably unused import
+  or task-created dead code) -- applied automatically if within budget.
+- **Observable or uncertain change** (including naming, control-flow,
+  visibility, API, policy, permission, deployment, or security behavior) --
+  proposed for human approval even when the diff is small.
 - **Refactor** (consolidation, restructuring, abstraction changes) -- proposed ONLY when the agent determines it is genuinely necessary or the benefit is substantial. A refactor is not the default action. The bar is: "Would a senior engineer look at this and say the current state is clearly wrong, not just imperfect?"
 
 **Refactor Stop Hook (mandatory):**
@@ -164,7 +177,10 @@ The agent does not batch refactor proposals. Each refactor is presented individu
 
 If the human selects `skip all refactors`, the agent skips remaining refactor proposals and moves to the Harden pass. Skipped refactors still appear in the output summary as `flagged` with status `skipped_by_user`.
 
-**Cosmetic fixes** do not trigger the stop hook. They are applied silently (and reported in the output summary). The rationale: removing an unused import is not a judgment call. Restructuring code is.
+Only changes proven behavior-preserving do not trigger the stop hook. The
+category label never overrides observable behavior: a rename, branch rewrite,
+or visibility reduction may be externally significant and must be approved
+when its effect is uncertain.
 
 ## Pass 2: Harden
 
@@ -196,7 +212,10 @@ The agent reviews its own work and asks:
 
 For each finding, the agent categorizes it as:
 
-- **Patch** (adding a validation check, escaping output, removing a hardcoded secret) -- applied automatically if within budget
+- **Patch** (adding a validation check, escaping output, removing a hardcoded
+  secret) -- applied automatically only when the approved acceptance contract
+  already requires it and targeted verification can prove the result;
+  otherwise request human approval
 - **Security refactor** (restructuring auth flow, replacing a vulnerable pattern with a new approach, changing data handling architecture) -- ALWAYS requires human approval before proceeding
 
 The same **Refactor Stop Hook** from the Simplify pass applies here. Security refactors are presented individually with the added context of severity and attack vector:
@@ -238,6 +257,20 @@ This is deliberately lightweight -- not a documentation pass, just decision capt
 - For any workaround or hack: add a comment with context and ideally a TODO with conditions for removal
 - For any performance-sensitive choice: note why the current approach was chosen over the obvious alternative
 - Maximum: 5 comments added per task. This is not a documentation sprint.
+
+## Pass 4: Re-verify
+
+Re-verification is mandatory before signaling completion.
+
+1. If Simplify & Harden changed any file, re-run the smallest existing tests,
+   checks, linters, or behavioral acceptance that cover those edits.
+2. If it made no edits, the immediately preceding `verify-gate` evidence may be
+   reused when it still covers the reviewed diff.
+3. If verification fails, return to implementation with the diagnostics; do
+   not emit a successful completion.
+4. If no applicable verification exists, record `not-run`, set
+   `review_followup_required: true`, and do not claim the task is fully
+   verified.
 
 ## Output Schema
 
@@ -304,6 +337,11 @@ simplify_and_harden:
         line: 93
         comment: "// WORKAROUND: Legacy API returns dates as strings without timezone. Assuming UTC until migration completes (see TICKET-1234)"
 
+  verification:
+    command: "npm test -- src/api/handler.test.ts"
+    result: "pass" # pass | fail | not-run
+    evidence: "Targeted handler tests passed after review edits"
+
   learning_loop:
     target_skill: "self-improvement"
     log_file: ".learnings/LEARNINGS.md"
@@ -347,10 +385,14 @@ simplify_and_harden:
     human_prompts_timed_out: 1
     learning_candidates: 2
     learning_promotions_recommended: 1
+    verification_result: "pass"
     review_followup_required: true
 ```
 
-Set `review_followup_required` to `true` when any unresolved finding remains (critical/advisory flags, skipped or timed-out refactor proposals), or when `budget_exceeded` is `true`. Set it to `false` only when no follow-up is required.
+Set `review_followup_required` to `true` when any unresolved finding remains
+(critical/advisory flags, skipped or timed-out refactor proposals), when
+`budget_exceeded` is `true`, or when verification is not `pass`. Set it to
+`false` only when no follow-up is required.
 
 ## Self-Improvement Integration (Learning Loop)
 
@@ -382,7 +424,8 @@ refactors in-line.
 Behavior:
 - Refactor proposals are shown one at a time with clear rationale
 - The agent pauses and waits for `[approve]`, `[reject]`, `[show diff]`, or `[skip all refactors]`
-- Cosmetic fixes and straightforward security patches are applied automatically
+- Only provably behavior-preserving fixes and acceptance-backed security
+  patches are applied automatically
 
 For CI pipelines and headless automation, use `simplify-and-harden-ci`.
 
@@ -398,8 +441,9 @@ Core invariants for any agent integration:
 2. **Budget cap** -- 20% max additional diff
 3. **Simplify-first posture** -- cleanup is the default, refactoring is the exception
 4. **Refactor stop hook** -- structural changes always require human approval
-5. **Three passes** -- simplify, harden, document (in that order)
-6. **Structured output** -- summary of applied, approved, rejected, and flagged items
+5. **Four phases** -- simplify, harden, document, re-verify (in that order)
+6. **Post-edit verification** -- rerun applicable checks after any review edit
+7. **Structured output** -- summary of applied, approved, rejected, flagged, and verified items
 
 Precaution: some agents may not reliably pause for approval in high-autonomy modes. Validate this behavior before production use.
 
@@ -450,19 +494,19 @@ For agents that don't support programmatic skill hooks (e.g., chat-based coding 
 ```
 After completing the task, run the Simplify & Harden review:
 1. Review only the files you modified
-2. Simplify: Your default action is cleanup -- remove dead code, unused 
-   imports, fix naming, tighten control flow, reduce unnecessary public 
-   surface. Apply these directly. Refactoring (merging functions, changing 
-   abstractions, restructuring) is NOT the default. Only propose a refactor 
-   when the code is genuinely wrong or the improvement is substantial. 
-   If you propose one, describe it and ask for approval before applying.
+2. Simplify: Your default action is cleanup. Apply only changes proven
+   behavior-preserving, such as removing a task-created unused import.
+   Naming, control-flow, visibility, API, policy, permission, deployment, and
+   security changes require approval when their effect is observable or
+   uncertain. Refactoring is NOT the default.
 3. Harden: Check for input validation gaps, injection vectors, auth issues, 
-   exposed secrets, and error handling problems. Apply simple patches directly.
-   For security refactors that change structure, describe the issue with
-   severity and ask for approval.
+   exposed secrets, and error handling problems. Apply a patch directly only
+   when the approved acceptance contract requires it and a targeted check can
+   verify it. Otherwise describe the issue with severity and ask for approval.
 4. Document: Add up to 5 comments on non-obvious decisions.
-5. Output a summary of what you changed, what you flagged, and 
-   what you left alone.
+5. Re-verify: Run the smallest existing checks that cover all review edits.
+6. Output a summary of what you changed, what you flagged, what you left
+   alone, and the verification evidence.
 ```
 
 ### CI Pipeline Variant
@@ -481,11 +525,11 @@ simplify-and-harden:
     max_time_seconds: 60       # Hard time limit
   simplify:
     enabled: true
-    auto_apply_cosmetic: true  # Cosmetic fixes applied without prompting
+    auto_apply_behavior_preserving: true
     refactor_requires_approval: true  # ALWAYS true -- cannot be disabled
   harden:
     enabled: true
-    auto_apply_patches: true   # Simple security patches applied without prompting
+    auto_apply_acceptance_backed_patches: true
     refactor_requires_approval: true  # ALWAYS true -- cannot be disabled
   document:
     enabled: true

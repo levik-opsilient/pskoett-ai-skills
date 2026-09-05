@@ -43,13 +43,31 @@ Parse each entry's metadata:
 - `Related Files` — which parts of the codebase are affected
 - `Source` — conversation / error / user_feedback / simplify-and-harden
 - `Tags` — free-form labels
+- `Task-ID`, `Session-ID`, `Occurrence-ID`, `Source-Ref`, `Copied-From` — optional provenance
+  fields from newer writers
 
 ## Step 2: Group and Aggregate
 
-Group entries by `Pattern-Key`. For each group:
+Build canonical occurrences before grouping:
 
-1. **Sum recurrences** across all entries with the same key
-2. **Count distinct tasks** — how many different sessions/tasks encountered this
+1. Collapse copied entries with the same entry ID and normalized content, even when they appear in
+   multiple repo locations.
+2. Collapse matching `Occurrence-ID` values across `.learnings/`, cloud/local mirrors, forks,
+   forwarded transcripts, and trace sources.
+3. When `Occurrence-ID` is absent, use explicit `Task-ID`, `Session-ID`, `Source-Ref`, and
+   `Copied-From` lineage plus normalized evidence to identify copies. Do not infer independence from
+   different file paths or checkpoint IDs alone.
+4. Treat one `.learnings` entry and one trace event describing the same task occurrence as one
+   occurrence, while retaining both source references as corroborating evidence.
+5. For legacy entries without stable task/session provenance, label lineage `unknown`. They may
+   contribute their declared recurrence once per canonical entry, but all unknown-lineage evidence
+   counts as at most one distinct task and cannot by itself prove the cross-task threshold.
+
+Then group canonical occurrences by `Pattern-Key`. For each group:
+
+1. **Count deduplicated recurrences** across canonical occurrences. Do not sum duplicate copies of
+   the same entry's `Recurrence-Count`.
+2. **Count distinct tasks** from stable task/session lineage, not source-file count
 3. **Compute time window** — days between First-Seen and Last-Seen
 4. **Collect all related files** — union of all entries' file references
 5. **Take highest priority** across entries in the group
@@ -67,8 +85,17 @@ Flag ungrouped entries separately with a recommendation to assign a `Pattern-Key
 ### Promotion Threshold
 An entry is **promotion-ready** when:
 - `Recurrence-Count >= 3` across the group
-- Seen in `>= 2 distinct tasks`
+- Seen in `>= 2 distinct tasks` proven by stable provenance
 - Within a `30-day window`
+
+Statuses are part of promotion state, not just display metadata:
+
+- `promoted`, `promoted_to_skill`, `resolved`, and `wont_fix` are terminal for the recorded
+  occurrence. Keep them as history, but do not surface a terminal-only group as promotion-ready.
+- If a newer `pending` or `in_progress` occurrence appears after the latest terminal event, classify
+  it as a regression/reopened pattern and compute readiness from the post-terminal occurrences.
+- A `Handoff` block is evidence that the threshold was previously reached, not permission to
+  re-promote an already terminal pattern.
 
 ### Approaching Threshold
 An entry is **approaching** when:
@@ -134,6 +161,8 @@ Output a structured report:
 ### Dismissed / Stale
 
 - Entries with Last-Seen > 90 days ago and Status: pending → recommend dismissal
+- Terminal-only patterns → report as historical, not promotion-ready
+- Legacy groups without enough stable task provenance → report as unverified cross-task recurrence
 ```
 
 ## Step 5: Handoff
@@ -211,7 +240,10 @@ entire explain --session <session-id-prefix>
 entire explain --checkpoint <id> --generate
 ```
 
-If `entire` is not installed or the current repo doesn't have Entire enabled, `--deep` falls back to `.learnings/`-only mode and reports the limitation in the gap report.
+If `entire` is not installed, the current repo doesn't have Entire enabled, or
+`entire rewind --list` succeeds with zero checkpoints, `--deep` falls back to
+`.learnings/`-only mode and reports the exact limitation in the gap report. An empty checkpoint list
+is not evidence that no sessions occurred.
 
 ### What to extract from a trace
 
@@ -224,7 +256,7 @@ For each checkpoint within the time window, parse the raw transcript and look fo
 5. **Approach changes** — agent switching strategy mid-task without explicit pivot → Pattern-key: `approach-switch.<domain>`
 6. **Token anomalies** — sessions with token count > 2x the median for similar task types → Pattern-key: `cost.<task-type>`
 
-Each finding is normalized to the same taxonomy as self-improvement (`harden.input_validation`, `simplify.dead_code`, etc.) where possible.
+Each finding is normalized to the same taxonomy as self-improvement (`harden.input_validation`, `simplify.dead_code`, etc.) where possible. Preserve the trace source, checkpoint, session, and task lineage needed to deduplicate it against `.learnings/` evidence.
 
 ### How the two sources merge in the gap report
 
@@ -251,13 +283,18 @@ A pattern in both sources is higher confidence than one from either alone. A pat
 
 ### Trace source compatibility
 
-The default implementation targets Entire (v0.5.4+) via the `entire rewind --list` and `entire explain` commands. The concept is source-agnostic — any session capture tool that exposes:
+The default implementation targets Entire (v0.5.4+) via the `entire rewind --list` and `entire explain` commands. The concept is source-agnostic — a documented Claude, Copilot, Codex, or other session source may be used when the environment exposes:
 
 - A list of recent checkpoints (with id, timestamp, session id)
 - The ability to read a checkpoint's transcript
 - Timestamps for cadence filtering
 
 ...can serve as a trace source. Adapters for other capture tools can be added in `scripts/` or via gh-aw `mcp-scripts`.
+
+Do not scrape arbitrary private transcript locations or invent an adapter when no documented source
+is available. Any adapter must emit the same stable task/session/source lineage and occurrence
+fingerprints used by Step 2. Report unsupported or empty sources instead of treating them as
+independent evidence.
 
 ## Persistence
 

@@ -9,8 +9,8 @@ description: >
   self-improvement. The outer loop (inspect, encode, regress-test) runs across
   sessions via learning-aggregator, harness-updater, and eval-creator.
   pre-flight-check bridges the two by surfacing accumulated knowledge — past
-  heals and learnings — at session start. Handles standard, team-based, CI,
-  and outer-loop pipeline variants. Does not replace individual skills;
+  heals and learnings — at session start. Handles standard, orchestrated-batch,
+  CI, and outer-loop pipeline variants. Does not replace individual skills;
   dispatches to them.
 ---
 
@@ -44,7 +44,7 @@ Task received
   │  → Full standard pipeline with context-surfing as critical skill
   │
   └─ Batch (multiple features from spec, 5+ discrete tasks, issue triage)
-     → Team-based pipeline (agent-teams-simplify-and-harden)
+     → Orchestrated standard pipeline with bounded work units and independent audits
 ```
 
 When uncertain, start with Medium. Add skills if drift or quality issues appear mid-task.
@@ -62,11 +62,11 @@ Route task class to the right variant:
 | Medium | Standard (partial) | Scope monitoring + verify + review |
 | Large | Standard (full) | Full inner loop with planning |
 | Long-running | Standard (full) | Context-surfing is critical |
-| Batch | Team-based | Breadth over depth |
+| Batch | Orchestrated standard | Bounded work units with per-unit gates |
 | CI environment | CI | Headless review |
 | Periodic | Outer loop | Cross-session improvement |
 
-**Heuristic:** Standard pipeline for **depth** (single complex feature). Team-based pipeline for **breadth** (batch of tasks). CI pipeline when `CI=true` or `GITHUB_ACTIONS=true`.
+**Heuristic:** Use the standard pipeline for both depth and breadth. For batch work, split the scope into bounded units and use `control-session-orchestrator` only when persistent multi-session coordination is available and useful. CI pipeline applies when `CI=true` or `GITHUB_ACTIONS=true`.
 
 ## Activation Sequences
 
@@ -77,7 +77,7 @@ pre-flight-check (SessionStart hook — surfaces prior learnings + heals)
   → classify
   → (recommend /plan-interview if Large or Long-running)
   → intent-framed-agent (at planning-to-execution transition)
-  → context-surfing (auto-activates when intent frame + plan exist; concurrent with intent monitoring)
+  → context-surfing (Large/Long-running or explicit high-context-pressure use; concurrent with intent monitoring)
   → [IMPLEMENTATION]
   → self-healing  ← inner-loop recovery primitive; called whenever a command/test/build/external call fails or a helper is missing.
   →                Diagnoses, patches, verifies, files HEAL- entry. Resumes when verified.
@@ -99,20 +99,23 @@ pre-flight-check (SessionStart hook — surfaces prior learnings + heals)
 | simplify-and-harden | - | If non-trivial | If non-trivial | If non-trivial | If non-trivial |
 | self-improvement | On error only | On error only | On error/completion | On error/completion | On error/completion |
 
-### Team-Based Pipeline
+### Orchestrated Batch Pipeline
 
 ```
 classify (Batch)
   → (recommend /plan-interview if no spec exists)
-  → agent-teams-simplify-and-harden
-    ├─ Team lead emits Intent Frame #1
-    ├─ Phase 1: parallel implementation agents
-    ├─ verify-gate (compile + test + lint)
-    ├─ Phase 2: parallel audit agents (simplify, harden, spec)
-    ├─ Fix loop (up to 3 audit rounds)
-    └─ Learning loop output
+  → split the scope into bounded work units
+  → control-session-orchestrator when persistent multi-session coordination is available
+    ├─ each unit follows its appropriate standard-pipeline depth
+    ├─ verify-gate after each implementation unit
+    ├─ independent simplify, harden, and spec auditors review the combined result
+    └─ verify-gate after audit-driven fixes
   → self-improvement
 ```
+
+If persistent orchestration is unavailable, process the same bounded units
+sequentially. Do not weaken verification, approval, or independent-review gates
+because parallel execution is unavailable.
 
 ### CI Pipeline
 
@@ -150,13 +153,13 @@ Not just which skills — how deep each goes:
 |-----------|-------|--------|-------|-------------|-------|
 | Pre-flight check | Hook | Hook | Hook | Hook | Hook |
 | Planning passes | 0 | 0-1 | 1-2 | Deep iterative | Per-task or umbrella |
-| Intent frame | - | Single frame | Full frame + monitoring | Full + handoff | Team lead frame |
-| Context-surfing | - | - | Active | Critical (exit protocol ready) | Lightweight drift checks |
-| Verify-gate | Compile + test | Compile + test | Compile + test + lint | Compile + test + lint | Compile + test (per round) |
-| Self-healing | On failure (file HEAL) | On failure (file HEAL) | On failure + recurrence check | On failure + recurrence check | On failure (per task) |
-| S&H budget | 20% diff, 60s | 20% diff, 60s | 20% diff, 60s | 20% diff, 60s | 30% team growth cap |
-| Audit rounds (teams) | - | - | - | - | Up to 3 |
-| Self-improvement | Error-triggered | Error-triggered | Error + S&H feed | Error + S&H feed | Error + teams feed |
+| Intent frame | - | Single frame | Full frame + monitoring | Full + handoff | Umbrella invariants + per-unit frames |
+| Context-surfing | - | - | Active | Critical (exit protocol ready) | Per Large/Long-running unit |
+| Verify-gate | Compile + test | Compile + test | Compile + test + lint | Compile + test + lint | Per unit + combined result |
+| Self-healing | On failure (file HEAL) | On failure (file HEAL) | On failure + recurrence check | On failure + recurrence check | On failure per unit |
+| S&H budget | 20% diff, 60s | 20% diff, 60s | 20% diff, 60s | 20% diff, 60s | Per non-trivial unit |
+| Independent review | - | - | Recommended | Required | Required on combined result |
+| Self-improvement | Error-triggered | Error-triggered | Error + S&H feed | Error + S&H feed | Error + S&H feed |
 
 ## Handoff Rules
 
@@ -164,7 +167,7 @@ Artifacts flow between skills. The orchestrator ensures each skill receives what
 
 **Key handoffs:**
 
-1. **Plan file** (`docs/plans/plan-NNN-<slug>.md`) — produced by `plan-interview`, consumed by `intent-framed-agent` (context), `context-surfing` (wave anchor), `agent-teams` (task extraction).
+1. **Plan file** (`docs/plans/plan-NNN-<slug>.md`) — produced by `plan-interview`, consumed by `intent-framed-agent` (context), `context-surfing` (wave anchor), and an optional `control-session-orchestrator` work-unit breakdown.
 
 2. **Intent Frame** — produced by `intent-framed-agent`, consumed by `context-surfing` (wave anchor strengthening). Copied into handoff files on drift exit.
 
@@ -174,7 +177,7 @@ Artifacts flow between skills. The orchestrator ensures each skill receives what
 
 5. **HEAL entries + artifacts** (`.learnings/HEALS.md`, `.learnings/heals/<HEAL-ID>/`) — produced by `self-healing`, consumed by `pre-flight-check` (surfaces prior heals at session start by `Pattern-Key` / `Active-Context`), `learning-aggregator` (cross-session recurrence analysis), and `self-improvement` (when `Handoff` block flags promotion at Recurrence ≥ 3).
 
-6. **Learning candidates** (`learning_loop.candidates`) — produced by `simplify-and-harden` and `agent-teams`, consumed by `self-improvement` for pattern tracking.
+6. **Learning candidates** (`learning_loop.candidates`) — produced by `simplify-and-harden`, consumed by `self-improvement` for pattern tracking.
 
 7. **Learning entries** (`.learnings/*.md`) — produced by `self-improvement`, consumed by `learning-aggregator` for cross-session analysis and by `pre-flight-check` at session start.
 
@@ -191,10 +194,10 @@ For the full artifact/signal/budget table: read `references/handoff-matrix.md`.
 The orchestrator intervenes at these moments:
 
 ### Task Arrival
-Classify the task. Select pipeline variant and depth. Emit routing decision. If Large/Long-running, recommend `/plan-interview`. If Batch, recommend team-based variant.
+Classify the task. Select pipeline variant and depth. Emit routing decision. If Large/Long-running, recommend `/plan-interview`. If Batch, define bounded work units and recommend orchestration only when the host supports it.
 
 ### Plan Approval
-When user approves a plan from `plan-interview`, flow directly into the execution stage — no separate "should I proceed?" prompt. This means activating `intent-framed-agent` to emit an Intent Frame. The intent frame itself still requires user confirmation before coding begins (that confirmation is part of `intent-framed-agent`, not an extra gate). Populate task tracking with checklist items.
+When user approves a plan from `plan-interview`, flow directly into the execution stage — no separate "should I proceed?" prompt. Activate `intent-framed-agent` and emit a faithful Intent Frame, but reuse the plan approval rather than asking for a second confirmation. Ask only if the frame introduces a material decision, assumption, or scope change. Populate task tracking with checklist items.
 
 ### Planning-to-Execution Transition
 When no plan-interview was used and the user signals readiness ("go ahead", "implement this", "let's start"), activate `intent-framed-agent`. Emit Intent Frame. Wait for user confirmation of the frame before coding.
@@ -209,14 +212,17 @@ Activate `verify-gate` to run compile, test, and lint checks. If any fail, route
 If `context-surfing` fires a drift exit, stop execution. Write handoff file. If the task was classified below Large, consider re-classifying upward for the next session.
 
 ### Session Resume
-Check for handoff files in `.context-surfing/`. If found, read completely. Re-establish context from handoff. Re-classify if needed. Resume from recommended re-entry point.
+Check for pending handoff files in `.context-surfing/`. If found, read the
+relevant file completely. Reuse an approved plan and intent unless material
+decisions remain, re-classify if needed, and resume from the recommended
+re-entry point. Mark the handoff consumed only after re-entry succeeds.
 
 ## Overrides
 
 Users can override any routing decision:
 
 - **Force depth:** `depth=small` / `depth=large` — override classification
-- **Force variant:** `variant=teams` / `variant=standard` — override pipeline selection
+- **Force variant:** `variant=orchestrated` / `variant=standard` — override pipeline selection
 - **Skip review:** `--no-review` — skip `simplify-and-harden`
 - **Force planning:** invoke `/plan-interview` on any task regardless of classification
 - **Skip all skills:** user says "just do it" on a non-trivial task — respect the override

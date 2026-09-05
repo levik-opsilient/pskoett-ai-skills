@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.4.0 — 2026-09-05
+
+### Fixed
+- **Installable plugin hooks**: moved the optional Entire wrapper into the packaged hooks tree, validate every referenced hook asset in the built artifact, and diagnose missing or failed Entire integration without blocking agent work.
+- **Bounded Entire execution**: optional Entire hooks now time out after five seconds, terminate their process group, preserve valid adapter output (including policy denials), and keep diagnostics off hook-protocol stdout.
+- **Verification contracts**: distinguish intermediate proof from the requested host, workspace, loaded artifact, real interaction, and observable outcome.
+- **Worker recovery**: preserve exact downstream schemas, validate before submission, change diagnosis or input after deterministic failures, pilot homogeneous shared-service batches, and pause repeated cross-unit failures.
+- **Learning provenance**: deduplicate copied/forked/forwarded evidence, require stable task lineage for cross-task recurrence, respect terminal statuses, and fall back when Entire has no checkpoints.
+- **Interaction contracts**: reuse valid approval, preserve enduring user constraints across intent pivots, use host-neutral structured questions, bound context recovery, and consume handoffs only after successful re-entry.
+- **Quality and eval contracts**: include high-impact configuration in simplify-and-harden, require fresh post-edit verification, test skills from the catalog rather than root-file inventories, preserve validator diagnostics, and distinguish structural assertions from behavioral evidence.
+
+### Changed
+- **Batch routing**: route broad work through bounded standard-pipeline units with per-unit and combined verification plus independent review.
+- **Generated plugin mirrors**: synchronized all changed bundled skills and references with their canonical sources.
+
+### Removed
+- **agent-teams-simplify-and-harden**: retired the canonical skill, plugin mirror, and live routing while retaining independent read-only auditors.
+
+---
+
 ## 2.3.0 — 2026-06-12
 
 ### Fixed

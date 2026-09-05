@@ -145,9 +145,9 @@ Self-healing files the verified patch; self-improvement promotes it (see Core Pr
 
 When a coding task with non-trivial code changes is complete:
 
-1. Run `skills/simplify-and-harden/SKILL.md` for a bounded simplify/harden/document pass in interactive coding sessions.
+1. Run `skills/simplify-and-harden/SKILL.md` for a bounded simplify/harden/document/re-verification pass in interactive coding sessions.
 2. For CI-only/headless runs, use `skills/simplify-and-harden-ci/SKILL.md` (gh-aw).
-3. For larger multi-file efforts, use `skills/agent-teams-simplify-and-harden/SKILL.md`.
+3. For larger multi-file efforts, coordinate bounded work units through `control-session-orchestrator`, then run the same verification and independent review gates.
 4. Treat independent review findings as the external merge gate and address or explicitly waive them.
 
 Keep `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md` synchronized.
