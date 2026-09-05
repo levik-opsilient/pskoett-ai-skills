@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.4.1 — 2026-09-05
+
+### Fixed
+- **Read-only research completion**: allow source-backed read-only units to report truthful `not-run` verification only when runtime checks were explicitly out of scope, no files changed, and cited evidence meets the declared success criteria. Implementation and configuration changes remain pass-gated.
+- **Result-gate coverage**: add positive and negative fixtures that distinguish completed read-only research from unverified implementation.
+- **Consumer validation**: express the self-improvement promotion threshold without angle brackets in its skill description so strict skill validators accept the bundled metadata.
+
+---
+
 ## 2.4.0 — 2026-09-05
 
 ### Fixed
