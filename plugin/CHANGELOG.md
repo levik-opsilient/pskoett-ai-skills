@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.5.0 — 2026-09-05
+
+### Added
+- **Agent Plugins 1.0 package**: ship a schema-valid portable package from `agent-plugin/` with the existing curated 15-skill bundle and MIT license.
+- **Official schema validation**: vendor the published Agent Plugins 1.0.0 manifest and MCP schemas and validate the portable manifest against JSON Schema Draft 2020-12.
+
+### Changed
+- **Generated skill distributions**: `scripts/sync_plugin.py` now updates both native client skill mirrors and the portable Agent Plugins skill tree from canonical sources while preserving executable modes and excluding development-only eval fixtures.
+- **Version alignment**: bump Claude Code, Codex, GitHub Copilot, marketplace, and portable package manifests together.
+
+---
+
 ## 2.4.1 — 2026-09-05
 
 ### Fixed

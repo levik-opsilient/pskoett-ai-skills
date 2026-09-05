@@ -71,6 +71,7 @@ A collection of skills for AI agents following the [Agent Skills specification](
 ## Structure
 
 - `skills/` - Public skills for distribution
+- `agent-plugin/` - Generated Agent Plugins 1.0 portable package
 - `.claude/skills/` - Local Claude Code skills
 - `.learnings/` - Captured learnings, errors, and feature requests
 
@@ -116,19 +117,21 @@ Check against the spec at https://agentskills.io/specification:
 
 ## Plugin Bundle Sync
 
-`plugin/skills/` is generated from `skills/` — do not hand-edit it. The public `skills/` copy is the single source of truth for each SKILL.md body and description; the plugin copy only adds plugin-registration frontmatter (`hooks`, `user-invocable`, `argument-hint`). After changing any `skills/` source, resync:
+`plugin/skills/` and `agent-plugin/skills/` are generated from `skills/` — do not hand-edit them. The public `skills/` copy is the single source of truth. The native plugin copy adds client-registration frontmatter (`hooks`, `user-invocable`, `argument-hint`); the portable copy keeps only Agent Skills-compatible metadata and excludes development-only eval fixtures. After changing any bundled `skills/` source, resync:
 
 ```bash
 ./scripts/sync-plugin.sh            # sync every bundled skill
 ./scripts/sync-plugin.sh <skill>    # sync one
 ```
 
-Intentionally NOT bundled into `plugin/skills/`:
+Intentionally NOT bundled into either generated skill tree:
 
 - `skill-tester`, `skill-tester-ci` — internal dev/validation tooling, not end-user skills.
 - `self-improvement-ci`, `simplify-and-harden-ci` — not currently shipped in the bundle.
 
 `harness-updater` is a plugin **agent** (`plugin/agents/`), not a skill, and ships only in the full plugin bundle.
+
+Agent Plugins 1.0 standardizes skills and MCP configuration, not native hooks or agents. Keep those capabilities in the client-specific manifests under `plugin/`; do not claim them as portable or invent extension namespaces.
 
 ## Self-Healing Workflow
 

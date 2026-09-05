@@ -1,6 +1,6 @@
 # pskoett-ai-skills
 
-A collection of skills for AI agents. Follows the [Agent Skills specification](https://agentskills.io/specification).
+A collection of skills for AI agents. Follows the [Agent Skills specification](https://agentskills.io/specification) and ships an [Agent Plugins 1.0](https://agent-plugins.org/specification) portable package.
 This repository is my personal skill testing ground.
 
 ## Philosophy
@@ -16,6 +16,14 @@ If you want to improve agent output over time, you need two loops, not one. The 
 One skill sits outside the two loops by design: `control-session-orchestrator` is an orchestration-layer skill, not an inner/outer-loop step. It runs *above* the pipeline — coordinating multi-agent, multi-session work from a Codex, Copilot, or agent-app control session — and is invoked directly rather than routed by `skill-pipeline`.
 
 ## Install
+
+### Agent Plugins 1.0
+
+The portable package entrypoint is [`agent-plugin/plugin.json`](agent-plugin/plugin.json). Point an Agent Plugins-compatible client or packager at the `agent-plugin/` directory.
+
+The portable package contains the curated Agent Skills bundle only. Agent Plugins 1.0 does not standardize hooks, agents, commands, or installation UX, so the native Claude Code, Codex, and GitHub Copilot adapters below remain the supported way to load those client-specific capabilities. A `hooks/` directory inside an individual portable skill is a skill resource, not an automatically registered plugin hook. This repository does not publish a portable `mcp.json` because it provides no MCP server.
+
+### Claude Code
 
 Install as a Claude Code plugin from this repo's marketplace. Run each command from inside Claude Code:
 
@@ -283,3 +291,25 @@ All hooks are lightweight (~50-200 tokens) and output nothing when no signals ex
 ## Contributing
 
 Feel free to submit PRs with new skills or improvements to existing ones.
+
+`skills/` is canonical. Regenerate both native and portable bundles after changing a bundled skill:
+
+```bash
+./scripts/sync-plugin.sh
+python3 scripts/test-sync-plugin.py
+```
+
+Validate the native package and the Agent Plugins 1.0 package:
+
+```bash
+python3 scripts/validate-plugin.py
+uv run --with jsonschema==4.25.1 --with PyYAML==6.0.3 \
+  python3 scripts/validate-agent-plugin.py
+```
+
+The portable validator uses vendored copies of the published 1.0.0 schemas under `schemas/agent-plugins/1.0.0/`. Validate individual generated skills with the Agent Skills reference CLI when changing skill metadata:
+
+```bash
+uvx --from 'git+https://github.com/agentskills/agentskills.git#subdirectory=skills-ref' \
+  skills-ref validate agent-plugin/skills/verify-gate
+```

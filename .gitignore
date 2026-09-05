@@ -1,5 +1,9 @@
 docs/
 .context-surfing/
 
+# Python validation caches
+__pycache__/
+*.py[cod]
+
 # Skill-creator eval workspaces (iteration outputs, snapshots, benchmark artifacts)
 skills/*-workspace/

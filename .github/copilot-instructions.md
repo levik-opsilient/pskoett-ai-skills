@@ -71,6 +71,7 @@ This is a collection of skills for AI agents following the [Agent Skills specifi
 ## Structure
 
 - `skills/` - Public skills for distribution
+- `agent-plugin/` - Generated Agent Plugins 1.0 portable package
 - `.claude/skills/` - Local Claude Code skills
 - `.learnings/` - Captured learnings, errors, and feature requests
 
@@ -90,6 +91,12 @@ The `name` field in frontmatter must match the folder name.
 - No README.md files inside skill folders (per spec)
 - Use lowercase with hyphens for skill names
 - When a skill references tool calls, add Copilot-compatible guidance to ask in chat
+
+## Plugin Bundle Sync
+
+`plugin/skills/` and `agent-plugin/skills/` are generated from `skills/` — do not hand-edit them. Run `./scripts/sync-plugin.sh` after changing a bundled skill. Native copies may add client-registration frontmatter; portable copies must keep Agent Skills-compatible metadata and exclude development-only eval fixtures.
+
+Agent Plugins 1.0 standardizes skills and MCP configuration, not native hooks or agents. Keep those capabilities in the client-specific manifests under `plugin/`; do not claim them as portable or invent extension namespaces.
 
 ## Self-Healing Workflow
 
